@@ -1,0 +1,33 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "backbone": "0.9.2",
+    "body-parser": "^1.18.2",
+    "cloudinary": "^1.9.1",
+    "cookie-parser": "^1.4.3",
+    "cors": "^2.8.4",
+    "crypto": "^1.0.1",
+    "dateformat": "^3.0.2",
+    "dotenv": "^4.0.0",
+    "express": "^4.16.2",
+    "jsonwebtoken": "^8.1.0",
+    "morgan": "^1.9.0",
+    "mysql": "^2.15.0",
+    "mysql-model": "0.0.2",
+    "rand-token": "^0.4.0",
+    "underscore": "1.4.2"
+  },
+  "devDependencies": {
+    "@types/underscore": "^1.8.6",
+    "jest": "^20.0.3"
+  }
+}
