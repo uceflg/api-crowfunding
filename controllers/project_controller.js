@@ -10,9 +10,10 @@ var Rewards = require('../models/rewards');
 var Users = require('../models/users');
 var cloudify = require('./image_uploader');
 var db = require('../config/db');
-var connection = mysql.createConnection(db.db_credentials);
+var connection;
 
 exports.getProjects = function(req, res){
+	createConnection();
 	connection.query(`SELECT	projects.id,
 														projects.title,
 														projects.video_url,
@@ -25,7 +26,7 @@ exports.getProjects = function(req, res){
 														projects.duration,
 														projects.category_id,
 														categories.name as category_name,
-														users.name as user_name,
+														team.name as user_name,
 														projects.total_backers,
 														(SELECT pictures.url
 															FROM   pictures
@@ -40,13 +41,12 @@ exports.getProjects = function(req, res){
 														TIMESTAMPDIFF(DAY, NOW(), DATE_ADD(projects.start_date, INTERVAL projects.duration DAY)) as remaining_duration,
 														false as is_favourite_project,
 														CASE WHEN (projects.pledged_amount - projects.funded_amount) <= 0 THEN true ELSE false END as is_funded
-										FROM	projects,
-													categories,
-													users,
-													stories
-										WHERE	categories.id = projects.category_id
-										AND	users.id = projects.user_id
-										AND   stories.project_id = projects.id`, function(error, results, fields){
+							FROM 		projects
+							INNER JOIN	categories ON categories.id = projects.category_id
+							INNER JOIN	team ON team.id = projects.team_id
+							LEFT JOIN	stories ON stories.project_id = projects.id
+							WHERE projects.aasm_state = 'funding'`, function(error, results, fields){
+		connection.end();
 		if (error) throw error;
 		project = results;
 		res
@@ -61,47 +61,99 @@ exports.getProjects = function(req, res){
 exports.setDraft = function(req, res){
 	let token = req.headers.authorization
 	let user = jwt.decode(token);
-	user = user.user
-	
 	let project;
 	let rewards;
-	connection.query('SELECT * FROM `projects` WHERE `user_id` = ? AND aasm_state = "draft"', [user], function(error, results, fields){
-		if (error) throw error;
-		project = results[0];
-		if(project){
-			getProject(project.id, res);
-		}else{
-			console.log("entre aca no se porque");
-			var now = new Date();
-			let draft = new Projects({
-				category_id: 0,
-				user_id: user,
-				aasm_state: 'draft',
-				created_at: dateFormat(now, "isoDateTime"),
-				updated_at: dateFormat(now, "isoDateTime")
+	let role;
+	user = user.user;
+	createConnection();
+	connection.query(`SELECT	roles.name,
+														(SELECT user_team.team_id
+														 FROM		user_team
+														 WHERE 	user_team.user_id = users.id
+														 AND		user_team.representative = 1) as team_id 
+										FROM 		users, 
+														roles
+										WHERE		users.id = ? 
+										AND 		roles.id = users.role_id`, [user], function(error, results, fields){
+		if(error) throw error;
+		role = results[0];
+		if(role.name == 'admin'){
+			
+			connection.query('SELECT * FROM `projects` WHERE `team_id` IS NULL AND aasm_state = "draft"', function(error, results, fields){
+				if (error) throw error;
+				project = results[0];
+				if(project){
+					getProject(project.id, res);
+				}else{
+					var now = new Date();
+
+					connection.query('INSERT INTO projects(category_id, aasm_state, created_at, updated_at) VALUES(?, ?, ?, ?)', 
+						[0, 
+						 'draft',
+						 dateFormat(now, "isoDateTime"), 
+						 dateFormat(now, "isoDateTime")]);
+
+					connection.query('SELECT * FROM projects WHERE team_id IS NULL and aasm_state = "draft"', function(error, results, fields){
+						connection.end();
+						if(error) throw error;
+						project = results[0];
+						res
+							.status(200)
+							.json({
+								project
+							})
+						res.end();
+					});
+				}//End if
+				
 			});
-			draft.save();
-			project = draft;
-			res
-				.status(200)
-				.json({
-					project
-				})
-			res.end();
-		}//End if
-		
+		}else{
+			connection.query('SELECT * FROM `projects` WHERE `team_id` = ? AND aasm_state = "draft"', [user.team_id], function(error, results, fields){
+				if (error) throw error;
+				project = results[0];
+				if(project){
+					getProject(project.id, res);
+				}else{
+					var now = new Date();
+					var now = new Date();
+
+					connection.query('INSERT INTO projects(category_id, aasm_state, team_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?)', 
+						[0, 
+						 'draft',
+						 role.team_id,
+						 dateFormat(now, "isoDateTime"), 
+						 dateFormat(now, "isoDateTime")]);
+
+					connection.query('SELECT * FROM projects WHERE team_id = ? and aasm_state = "draft"',[role.team_id], function(error, results, fields){
+						connection.end();
+						if(error) throw error;
+						project = results[0];
+						res
+							.status(200)
+							.json({
+								project
+							})
+						res.end();
+					});
+				}//End if				
+			});
+		}
 	});
+
+
+	
 	return;
 }
 
 exports.create = function(req,res){
 
 	const projectInfo = req.body;
-	console.log(projectInfo);
 	const projectFind = new Projects();
 	const projectDraft = new Projects();
+
 	let project;
 	let rewards;
+	createConnection();
 	//project.set('id', projectInfo.id);
 	//project.save();
 	switch(projectInfo.type){
@@ -127,10 +179,11 @@ exports.create = function(req,res){
 
 exports.launch = function(req,res){
 	const projectInfo = req.body;
-
+	createConnection();
 	connection.query('UPDATE projects SET aasm_state = ? WHERE id = ?', 
 		['pending_approval', 
 		projectInfo.id], function(error, results, fields){
+			connection.end();
 			if(error){
 				res
 					.status(200)
@@ -152,12 +205,13 @@ exports.launch = function(req,res){
 
 exports.fetchProject = function(req, res){
 	let projectInfo = req.params;
+	createConnection();
 	getProject(projectInfo.id, res);
 }
 
 exports.updateProjects = function(req, res){
 	let projectInfo = req.body;
-	//console.log(projectInfo);
+	createConnection();
 	switch(projectInfo.type){
 		case 'project': {
 			updateProj(projectInfo, res);
@@ -182,20 +236,23 @@ saveProject = function(projectInfo, res){
 	let foundOne;
 	let project;
 
-	connection.query('SELECT * FROM `projects` WHERE `id` = ? ', [projectInfo.id], function(error, results, fields){
+	connection.query('SELECT * FROM `projects` WHERE `id` = ? AND title IS NOT NULL', [projectInfo.id], function(error, results, fields){
 		if(error) throw error;
 		project = results[0];
 		if(project){
 			var now = new Date();
-			connection.query('UPDATE projects SET video_url = ?, updated_at = ? WHERE id = ?', 
+			connection.query('UPDATE projects SET video_url = ?, team_id = ?, updated_at = ? WHERE id = ?', 
 				[projectInfo.video_url,
+				 projectInfo.team_id,
 				 dateFormat(now, "isoDateTime"), 
 				 projectInfo.id]);
+				 connection.end();
 		}else{
 			var now = new Date();
 
 			let projectJson = {
 				title: projectInfo.title,
+				team_id: projectInfo.team_id,
 				category_id: projectInfo.category_id,
 				aasm_state: 'draft',
 				video_url: projectInfo.video_url,
@@ -207,9 +264,31 @@ saveProject = function(projectInfo, res){
 				updated_at: dateFormat(now, "isoDateTime")
 			};
 
-			connection.query('INSERT INTO projects SET ?', projectJson, function(error, results, fields){
+			connection.query(`UPDATE 	projects 
+												SET 		title = ?, 
+																team_id = ?, 
+																category_id = ?, 
+																aasm_state = ?, 
+																video_url = ?, 
+																pledged_amount = ?,
+																funding_model = ?,
+																start_date = ?,
+																currency = ?,
+																duration = ?,
+																updated_at = ?
+												WHERE   id = ?`, [projectInfo.title,
+																					projectInfo.team_id,
+																					projectInfo.category_id,
+																					'draft',
+																					projectInfo.video_url,
+																					projectInfo.pledged_amount,
+																					projectInfo.funding_model,
+																					dateFormat(projectInfo.start_date, 'isoDateTime'),
+																					projectInfo.currency,
+																					projectInfo.duration,
+																					dateFormat(now, "isoDateTime"),
+																				  projectInfo.id], function(error, results, fields){
 				if(error) throw error;
-				console.log("inserte!");
 			}); //Fin Insert
 		}
 
@@ -235,7 +314,7 @@ saveRewards = function(projectInfo, res){
 	for(i in rowsRewards){
 		connection.query('SELECT * FROM `rewards` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, rowsRewards[i].id], function(error, results, fields){
 			if(error) throw error;
-			reward = result[0];
+			reward = results	[0];
 			if(reward){
 				var now = new Date();
 				connection.query('UPDATE rewards SET title = ?, description = ?, amount = ?, updated_at = ?, delivery_date = ?, quantity = ? WHERE id = ?', 
@@ -265,7 +344,6 @@ saveRewards = function(projectInfo, res){
 
 				connection.query('INSERT INTO rewards SET ?', rewardSave, function(error, results, fields){
 					if(error) throw error;
-					console.log("inserte!");
 				}); //Fin Insert	
 			}
 		});
@@ -302,7 +380,6 @@ saveStory = function(projectInfo, res){
 
 			connection.query('INSERT INTO stories SET ?', storyJson, function(error, results, fields){
 				if(error) throw error;
-				console.log("inserte!");
 			}); //Fin Insert	
 			
 		}
@@ -342,7 +419,6 @@ saveFaqs = function(projectInfo, res){
 
 				connection.query('INSERT INTO faqs SET ?', rewardSave, function(error, results, fields){
 					if(error) throw error;
-					console.log("inserte!");
 				}); //Fin Insert	
 			}
 		});
@@ -359,36 +435,66 @@ getProject = function(id, res){
 	let story;
 	let faqs;
 	let pictures;
+	let team;
 
-	connection.query('SELECT * FROM `projects` WHERE `id` = ?', [id], function(error, results, fields){
+	connection.query(`SELECT 	projects.id,
+														projects.title,
+														projects.video_url,
+														projects.pledged_amount,
+														projects.currency,
+														projects.end_date,
+														projects.team_id,
+														projects.funded_amount,
+														ROUND((projects.funded_amount/projects.pledged_amount)*100) as percent_funded,
+														projects.funding_model,
+														projects.start_date,
+														projects.duration,
+														categories.id as category_id,
+														categories.name as category_name,
+														team.name as team_name,
+														projects.total_backers,
+														false as can_edit,
+														projects.aasm_state as current_state,
+														TIMESTAMPDIFF(DAY, NOW(), DATE_ADD(projects.start_date, INTERVAL projects.duration DAY)) as remaining_duration,
+														CASE WHEN (projects.pledged_amount - projects.funded_amount) <= 0 THEN true ELSE false END as is_funded
+										FROM	projects
+										INNER JOIN	categories ON categories.id = projects.category_id
+										INNER JOIN	team ON team.id = projects.team_id
+										WHERE projects.id = ?`, [id], function(error, results, fields){
 		if (error) throw error;
 		project = results[0];
 		//Get Rewards.
-		connection.query('SELECT * FROM `rewards` WHERE `project_id` = ?', [id], function(error, results, fields){
+		connection.query('SELECT id, title, description, amount, delivery_date, quantity, currency, backers_count FROM `rewards` WHERE `project_id` = ?', [id], function(error, results, fields){
 			if (error) throw error;
 			rewards = results;
-			project.rewards = rewards;
+			rewards ? project.rewards = rewards : [];
 			//Get Stories.
-			connection.query('SELECT * FROM `stories` WHERE `project_id` = ?', [id], function(error, results, fields){
+			connection.query('SELECT id, body FROM `stories` WHERE `project_id` = ?', [id], function(error, results, fields){
 				if (error) throw error;
 				story = results[0];
-				project.story = story;
+				story ? project.story = story : {};
 				//Get Faqs.
-				connection.query('SELECT * FROM `faqs` WHERE `project_id` = ?', [id], function(error, results, fields){
+				connection.query('SELECT id, question, answer FROM `faqs` WHERE `project_id` = ?', [id], function(error, results, fields){
 					if (error) throw error;
 					faqs = results;
-					project.faqs = faqs;
+					faqs ? project.faqs = faqs : [];
 					//Get Pictures.
 					connection.query('SELECT id, url FROM `pictures` WHERE `project_id` = ?', [id], function(error, results, fields){
 						if (error) throw error;
 						pictures = results;
-						project.pictures = pictures;
-						res
-							.status(200)
-							.json({
-								project	
-							})
-						res.end();
+						pictures ? project.pictures = pictures : [];
+						connection.query('SELECT id, name, logo_url, description FROM team WHERE id = ?', [project.team_id], function(error, results, fields){
+							connection.end();
+							if(error) throw error;
+							team = results[0];
+							team ? project.team = team : {};
+							res
+								.status(200)
+								.json({
+									project	
+								})
+							res.end();
+						});
 					});
 				});
 			});
@@ -402,7 +508,6 @@ getProject = function(id, res){
 
 updateProj = function(projectInfo, res){
 	var now = new Date();
-	console.log(projectInfo);
 	connection.query('UPDATE projects SET video_url = ?, updated_at = ? WHERE id = ?', 
 		[projectInfo.video_url,
 		 dateFormat(now, "isoDateTime"), 
@@ -412,10 +517,13 @@ updateProj = function(projectInfo, res){
 				for(let i of projectInfo.images_data){
 					cloudify.upload_image(i, function(data){
 						if(!data.error){
-							connection.query(`INSERT INTO pictures SET ? `, {url: data.url, created_at: dateFormat(now, "isoDateTime"), updated_at: dateFormat(now, "isoDateTime"), project_id: projectInfo.id}, function(error, results, fields){
+							connection.query(`INSERT INTO pictures(url, created_at, updated_at, project_id) VALUES (?, ? ,? ,?) `, [data.url, dateFormat(now, "isoDateTime"), dateFormat(now, "isoDateTime"), projectInfo.id], function(error, results, fields){
 								if(error) throw error;
 								
 							})
+						}
+						else{
+							console.log(data.error);
 						}
 					});
 				}
@@ -433,31 +541,6 @@ updateProj = function(projectInfo, res){
 	return;
 }
 
-
-
-findById = function(id){
-	let project;
-	const projectFind2 = new Projects();
-
-	projectFind2
-		.find('all', 
-			{ where: "id = '" + id + "'"},
-			function(err, rows){
-				if(err){
-					console.log('error');
-					res.end();
-				}						
-				project = rows[0];
-				console.log("resultado", rows[0]);
-				project.rewards = [new Rewards];
-				
-			});
-	return project;
-
-}
-
-exports.test = function(req, res){
-	var d = new Date();
-	dateFormat(d, "isoDateTime");
-	console.log(dateFormat(d, "isoDateTime"));
+createConnection = function(){
+	connection = mysql.createConnection(db.db_credentials);
 }

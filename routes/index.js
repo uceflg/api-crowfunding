@@ -15,7 +15,8 @@ router.get('/validate_token', ctrlAuth.isLoggedIn);
 
 //Users.
 router.get('/users/:id', crtlUser.fetchUser);
-
+router.post('/team', crtlUser.createTeam);
+router.get('/team', crtlUser.getTeams)
 // Projects.
 router.get('/projects/draft', ctrlProject.setDraft);
 router.post('/projects', ctrlProject.create);

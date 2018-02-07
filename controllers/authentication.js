@@ -41,11 +41,9 @@ module.exports.register = function (req, res) {
         }
         if (rows.length) {
             connection.end();
-            console.log('no encontre ni shiet');
             res.status(404).send('signupMessage That username is already taken.');
             res.end();
         } else {
-            console.log("entre");
             // if there is no user with that username
             // create the user
             var d = new Date();
@@ -71,7 +69,6 @@ module.exports.register = function (req, res) {
             connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
                 if (err) {
                     connection.end();
-                    console.log('no se que wea');
                     res.status(404).send(err);
                     res.end();
                 }
@@ -115,6 +112,14 @@ module.exports.login = function (req, res) {
             res.end();
         }
         if (rows.length) {
+            
+            if(rows[0].email_confirmed == 0){
+                connection.end();
+                console.log('Email not confirmed.');
+                res.status(401).send('Email not confirmed.');
+                res.end();
+            }
+
             if(validPassword(pass, rows[0].salt, rows[0].hash)){
                 connection.end();
                 const payload = {
@@ -128,7 +133,7 @@ module.exports.login = function (req, res) {
                  res.json({
                      success: true,
                      message: 'Connection Successful',
-                     user: rows[0],
+                     user: {id: rows[0].id, name: rows[0].name, image_url: rows[0].image_url, email: rows[0].email},
                      authorization: token,
                      refresh: refreshToken
                  });
@@ -141,7 +146,7 @@ module.exports.login = function (req, res) {
             connection.end();
             console.log('User doesn\'t exists');
             res.status(401).send('User doesn\'t exists');
-            read.end();
+            res.end();
         }
     });
 };

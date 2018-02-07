@@ -14,7 +14,6 @@ Projects.draft = function(user){
 		user_id: user,
 		aasm_state: 'draft'
 	});
-	console.log("voya guardar");
 	project.save();
 	return project;
 }
