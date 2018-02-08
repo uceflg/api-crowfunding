@@ -84,7 +84,7 @@ exports.fetchUser = function(req, res){
                 user
               })
             res.end();
-
+            return;
             }
           ) //Fin obtener proyectos.
       }else{
@@ -126,7 +126,7 @@ exports.fetchUser = function(req, res){
                 user
               })
              res.end();
-
+             return;
             }
          ) //Fin obtener proyectos.
       } 
@@ -152,6 +152,7 @@ exports.createTeam = function(req, res){
             error:  "Team Ya Existe."	
           })
         res.end();
+        return;
       }else{
         //Crear nuevo Team.
         var now = new Date();
@@ -186,6 +187,7 @@ exports.createTeam = function(req, res){
             status: true	
           })
         res.end();
+        return;
       }
     });
 
@@ -225,6 +227,7 @@ exports.getTeams = function(req, res){
           teams: teams
         })
       res.end();
+      return;
 	}); //Fin obtener usuario.
 }
 

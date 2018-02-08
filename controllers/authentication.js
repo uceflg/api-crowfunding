@@ -110,6 +110,7 @@ module.exports.login = function (req, res) {
             console.log('Error while performing Query.');
             res.status(404).send('Error while performing Query.');
             res.end();
+            return;
         }
         if (rows.length) {
             
@@ -118,6 +119,7 @@ module.exports.login = function (req, res) {
                 console.log('Email not confirmed.');
                 res.status(401).send('Email not confirmed.');
                 res.end();
+                return;
             }
 
             if(validPassword(pass, rows[0].salt, rows[0].hash)){
@@ -138,9 +140,11 @@ module.exports.login = function (req, res) {
                      refresh: refreshToken
                  });
                  res.end();
+                 return;
             }else{
                 connection.end();
                 console.log("error");
+                return;
             }
         } else {
             connection.end();

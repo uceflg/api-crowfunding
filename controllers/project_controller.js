@@ -55,6 +55,7 @@ exports.getProjects = function(req, res){
 				project	
 			})
 		res.end();
+		return;
 	});
 }
 
@@ -103,6 +104,7 @@ exports.setDraft = function(req, res){
 								project
 							})
 						res.end();
+						return;
 					});
 				}//End if
 				
@@ -134,6 +136,7 @@ exports.setDraft = function(req, res){
 								project
 							})
 						res.end();
+						return;
 					});
 				}//End if				
 			});
@@ -191,6 +194,7 @@ exports.launch = function(req,res){
 						status: false
 					})
 				res.end();
+				return;
 			}else{
 				res
 					.status(200)
@@ -198,6 +202,7 @@ exports.launch = function(req,res){
 						status: true
 					})
 				res.end();
+				return;
 			}
 		});
 	
@@ -494,6 +499,7 @@ getProject = function(id, res){
 									project	
 								})
 							res.end();
+							return;
 						});
 					});
 				});

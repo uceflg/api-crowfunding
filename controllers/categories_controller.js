@@ -20,7 +20,7 @@ exports.getAll = function(req, res){
         res.status(200).json({
             categories
         });
-        res.end()
+        res.end();
     });    
     return;
 }
