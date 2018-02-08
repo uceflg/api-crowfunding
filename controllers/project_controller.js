@@ -74,7 +74,7 @@ exports.setDraft = function(req, res){
 															(SELECT user_team.team_id
 															FROM		user_team
 															WHERE 	user_team.user_id = users.id
-															AND		user_team.representative = 1) as team_id 
+															AND		user_team.editor = 1) as team_id 
 											FROM 		users, 
 															roles
 											WHERE		users.id = ? 
@@ -469,7 +469,7 @@ getProject = function(id, res){
 															CASE WHEN (projects.pledged_amount - projects.funded_amount) <= 0 THEN true ELSE false END as is_funded
 											FROM	projects
 											INNER JOIN	categories ON categories.id = projects.category_id
-											INNER JOIN	team ON team.id = projects.team_id
+											LEFT JOIN	team ON team.id = projects.team_id
 											WHERE projects.id = ?`, [id], function(error, results, fields){
 			if (error) throw error;
 			project = results[0];
@@ -493,7 +493,6 @@ getProject = function(id, res){
 							if (error) throw error;
 							pictures = results;
 							pictures ? project.pictures = pictures : [];
-							console.log(project.team_id);
 							connection.query('SELECT id, name, logo_url, description FROM team WHERE id = ?', [project.team_id], function(error, results, fields){
 								connection.release();
 								if(error) throw error;

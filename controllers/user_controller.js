@@ -40,7 +40,7 @@ exports.fetchUser = function(req, res){
                               (SELECT user_team.team_id
                               FROM   user_team
                               WHERE user_team.user_id = users.id
-                              AND   user_team.representative = 1) as team_id
+                              AND   user_team.editor = 1) as team_id
                       FROM		users, 
                               roles
                       WHERE 	users.id = ?
@@ -232,4 +232,4 @@ exports.getTeams = function(req, res){
         return;
     }); //Fin obtener usuario.
   });
-}
+} 
