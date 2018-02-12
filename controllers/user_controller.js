@@ -37,10 +37,12 @@ exports.fetchUser = function(req, res){
                               (SELECT	addresses.street_address
                               FROM		addresses
                               WHERE	addresses.user_id = users.id) as address,
-                              (SELECT user_team.team_id
+                              IFNULL((SELECT user_team.team_id
                               FROM   user_team
-                              WHERE user_team.user_id = users.id
-                              AND   user_team.editor = 1) as team_id
+                              WHERE user_team.user_id = users.id),0) as team_id,
+                              (SELECT user_team.editor
+                               FROM   user_team
+                               WHERE user_team.user_id = users.id) can_edit
                       FROM		users, 
                               roles
                       WHERE 	users.id = ?
@@ -135,16 +137,44 @@ exports.fetchUser = function(req, res){
   });
 }
 
+exports.fetchAllUsers = function(req, res){
+  let users;
+  pool.getConnection(function(error, connection){
+    connection.query(`SELECT 	users.id,
+                              users.name
+                      FROM		users,
+                              roles
+                      WHERE		NOT EXISTS (SELECT	1
+                                          FROM	  user_team
+                                          WHERE		user_team.user_id = users.id
+                                          AND     user_team.leader = 1)
+                      AND		roles.id = users.role_id
+                      AND		roles.name <> 'admin'`, 
+      function(error, results, fields){
+        connection.release();
+        if (error) throw error;
+        users = results;
+        res
+          .status(200)
+          .json({
+            users: users
+          })
+        res.end();
+        return;
+    }); //Fin obtener usuario.
+  });
+}
+
 exports.createTeam = function(req, res){
   let team = req.body.team;
   let teamResult;
   pool.getConnection(function(error, connection){
     if(team.id == ''){
       connection.query('SELECT * FROM team WHERE UPPER(name) = ?', [(team.name).toUpperCase()], function(error, results, fields){
-        connection.release();
         if(error) throw error;
         teamResult = results[0];
         if(teamResult){
+          connection.release();
           //Ya existe el nombre del equipo.
           res
             .status(200)
@@ -171,24 +201,47 @@ exports.createTeam = function(req, res){
             let teamJson = {
               name: team.name,
               logo_url : url,
+              email: team.email,
+              web_url: team.web_url,
+              city: team.city,
+              state: team.state,
+              region: team.region,
               description: team.description,
               team_date: dateFormat(team.start_date),
               created_at: dateFormat(now, "isoDateTime"),
               updated_at: dateFormat(now, "isoDateTime")
             };
+            console.log(team.representative)
 
             connection.query('INSERT INTO team SET ?', teamJson, function(error, results, fields){
-              connection.release();
               if(error) throw error;
+              let newTeam;
+              let existe;
+              connection.query('SELECT * FROM team WHERE UPPER(name) = ?',[(team.name).toUpperCase()], function(error, results, fields){
+                if(error) throw error;
+                newTeam = results[0];
+                console.log("team",newTeam);
+                connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
+                  if(error) throw error;
+                  existe = results[0];
+                  console.log("existe",results[0]);
+                  if(existe){
+                    connection.query('UPDATE user_team SET leader = 1, editor = 1 WHERE user_id = ?'[team.representative]);
+                  }else{
+                    connection.query('INSERT INTO user_team(user_id, team_id, leader, editor) VALUES(?, ?, ?, ?)',[team.representative, newTeam.id, true, true]);
+                  }
+                  connection.release();
+                  res
+                    .status(200)
+                    .json({
+                      status: true	
+                    })
+                  res.end();
+                  return;
+                });
+              });
               
-            }); //Fin Insert
-            res
-            .status(200)
-            .json({
-              status: true	
-            })
-          res.end();
-          return;
+            }); //Fin Insert  
         }
       });
 
@@ -200,6 +253,32 @@ exports.createTeam = function(req, res){
         team.name,
         team.description, 
         storySave.id]);
+        let existe;
+        let quitar;
+        connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
+          if(error) throw error;
+          existe = results[0];
+          if(existe){
+            connection.query('UPDATE user_team SET leader = 1, editor = 1 WHERE user_id = ? AND team_id = ?'[team.representative, team.id]);
+            connection.query('SELECT * FROM user_team WHERE user_id <> ? AND team_id = ?', [team.representative, team.id], function(error, results, fields){
+              if(error) throw error;
+              quitar = results[0];
+              if(quitar){
+                connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id]);
+              }
+            });
+          }else{
+            connection.query('INSERT INTO user_team(user_id, team_id, representative, editor) VALUES(?, ?, ?, ?)'[team.representative, newTeam.id, 1, 1]);
+            connection.query('SELECT * FROM user_team WHERE user_id <> ? AND team_id = ?', [team.representative, team.id], function(error, results, fields){
+              if(error) throw error;
+              quitar = results[0];
+              if(quitar){
+                connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id]);
+              }
+            });
+          }
+        });
+
       connection.release();
         res
         .status(200)

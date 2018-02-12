@@ -7,6 +7,7 @@ var ctrlAuth = require('../controllers/authentication');
 var ctrlProject = require('../controllers/project_controller');
 var ctrlCategories = require('../controllers/categories_controller');
 var crtlUser = require('../controllers/user_controller');
+var ctrlTeam = require('../controllers/team_controller');
 
 // Authentication.
 router.post('/register', ctrlAuth.register);
@@ -15,8 +16,11 @@ router.get('/validate_token', ctrlAuth.isLoggedIn);
 
 //Users.
 router.get('/users/:id', crtlUser.fetchUser);
+router.get('/users', crtlUser.fetchAllUsers);
 router.post('/team', crtlUser.createTeam);
-router.get('/team', crtlUser.getTeams)
+router.get('/team', crtlUser.getTeams);
+router.get('/teams', ctrlTeam.getTeams);
+router.get('/team/:id', ctrlTeam.getTeam);
 // Projects.
 router.get('/projects/draft', ctrlProject.setDraft);
 router.post('/projects', ctrlProject.create);

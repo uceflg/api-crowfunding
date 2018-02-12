@@ -251,21 +251,7 @@ saveProject = function(projectInfo, res){
 					connection.release();
 			}else{
 				var now = new Date();
-
-				let projectJson = {
-					title: projectInfo.title,
-					team_id: projectInfo.team_id,
-					category_id: projectInfo.category_id,
-					aasm_state: 'draft',
-					video_url: projectInfo.video_url,
-					pledged_amount: projectInfo.pledged_amount,
-					funding_model: projectInfo.funding_model,
-					start_date: dateFormat(projectInfo.start_date, 'isoDateTime'),
-					currency: projectInfo.currency,
-					duration: projectInfo.duration,
-					updated_at: dateFormat(now, "isoDateTime")
-				};
-
+				
 				connection.query(`UPDATE 	projects 
 													SET 		title = ?, 
 																	team_id = ?, 
