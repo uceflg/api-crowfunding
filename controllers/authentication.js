@@ -31,18 +31,20 @@ module.exports.register = function (req, res) {
     });
     
 
-    connection.query("SELECT * FROM users WHERE name = ?", [name], function (err, rows, fields) {
+    connection.query("SELECT * FROM users WHERE email = ?", [email], function (err, rows, fields) {
         
         if (err){
             connection.end();
             console.log('Error while performing Query.');
             res.status(404).send('Error while performing Query.');
             res.end();
+            return;
         }
         if (rows.length) {
             connection.end();
-            res.status(404).send('signupMessage That username is already taken.');
+            res.status(404).json({message: "El correo ya se encuentra utilizado."});
             res.end();
+            return;
         } else {
             // if there is no user with that username
             // create the user
@@ -58,25 +60,32 @@ module.exports.register = function (req, res) {
                 email: email,
                 salt: salt,  // use the generateHash function in our user model
                 hash: hash,
+                role_id: 2,
                 created_at: dateFormat(h, "isoDateTime"),
                 updated_at: dateFormat(h, "isoDateTime")
             };
             console.log(newUserMysql.salt);
             console.log(newUserMysql.hash);
 
-            var insertQuery = "INSERT INTO users ( name, email, hash, salt, created_at, updated_at) values (?,?,?,?,?,?)";
+            var insertQuery = "INSERT INTO users ( name, email, hash, salt, role_id, created_at, updated_at) values (?,?,?,?,?,?)";
 
-            connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
+            connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, 2, newUserMysql.salt, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
                 if (err) {
                     connection.end();
                     res.status(404).send(err);
                     res.end();
+                    return;
                 }
+                connection.end();
                 var token;
                 console.log(rows.insertId);
                 //token = generateJwt();
-                res.sendStatus(200).send(newUserMysql.id);
-                connection.end();
+                res
+                    .status(200)
+                    .json({
+                        message: "A Confirmation email has bent sent to "+ email + ", please confirm it"
+                    });
+                return;
                 /*res.json({
                     "token": token,
                     "newUserMysql": newUserMysql.id
@@ -117,7 +126,12 @@ module.exports.login = function (req, res) {
             if(rows[0].email_confirmed == 0){
                 connection.end();
                 console.log('Email not confirmed.');
-                res.status(401).send('Email not confirmed.');
+                res
+                    .status(200)
+                    .json({
+                        error: true,
+                        message: 'Email not confirmed.'
+                    });
                 res.end();
                 return;
             }

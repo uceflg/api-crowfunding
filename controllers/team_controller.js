@@ -59,3 +59,30 @@ exports.getTeam = function(req, res){
     }); //Fin obtener usuario.
   });
 }
+
+exports.getMembers = function(req, res){
+  let teamId = req.params;
+  console.log(teamId);
+  let members;
+  pool.getConnection(function(error, connection){
+    connection.query(`SELECT	users.email
+                      FROM 		user_team,
+                              users
+                      WHERE  	user_team.team_id = ?
+                      AND 		users.id = user_team.user_id
+                      `,
+                      [teamId.id], 
+      function(error, results, fields){
+        connection.release();
+        if (error) throw error;
+        members = results;
+        res
+          .status(200)
+          .json({
+            members: members
+          })
+        res.end();
+        return;
+    }); //Fin obtener usuario.
+  });
+}
