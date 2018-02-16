@@ -86,3 +86,27 @@ exports.getMembers = function(req, res){
     }); //Fin obtener usuario.
   });
 }
+
+exports.setMember = function(req, res){
+  let memberInfo = req.body;
+  let member;
+  pool.getConnection(function(error, connection){
+    connection.query(`SELECT	*
+                      FROM    user
+                      WHERE   user.email = ?
+                      `,
+                      [memberInfo.email], 
+      function(error, results, fields){
+        connection.release();
+        if (error) throw error;
+        members = results;
+        res
+          .status(200)
+          .json({
+            members: members
+          })
+        res.end();
+        return;
+    }); //Fin obtener usuario.
+  });
+}

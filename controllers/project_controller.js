@@ -349,18 +349,30 @@ saveRewards = function(projectInfo, res){
 saveStory = function(projectInfo, res){
 	let foundOne;
 	let storySave = projectInfo.story_attributes;
+	console.log(projectInfo.id);
 	let story;
 	pool.getConnection(function(error, connection){
-		connection.query('SELECT * FROM `stories` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, storySave.id], function(error, results, fields){
+		connection.query('SELECT * FROM stories WHERE project_id = ? AND id = ?', [projectInfo.id, storySave.id], function(error, results, fields){
 			if(error) throw error;
 			story = results[0];
 			if(story){
+				console.log(story);
 				var now = new Date();
-				connection.query('UPDATE stories SET updated_at = ?, body = ?, WHERE id = ?', 
+				connection.query('UPDATE stories SET updated_at = ?, body = ? WHERE id = ?', 
 					[dateFormat(now, "isoDateTime"), 
 					storySave.body, 
-					storySave.id]);
+					story.id], function(error, results, fields){
+						if(error){
+							console.log(error);
+							throw error
+						}else{
+							console.log("guarde ctm");
+							console.log(results);
+						}
+						getProject(projectInfo.id, res);
+					});
 					connection.release();
+					
 			}else{
 				var now = new Date();
 
@@ -374,10 +386,11 @@ saveStory = function(projectInfo, res){
 				connection.query('INSERT INTO stories SET ?', storyJson, function(error, results, fields){
 					connection.release();
 					if(error) throw error;
+					getProject(projectInfo.id, res);
 				}); //Fin Insert	
 				
 			}
-			getProject(projectInfo.id, res);
+			
 		});	
 		return;
 	});

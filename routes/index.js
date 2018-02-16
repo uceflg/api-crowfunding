@@ -17,11 +17,15 @@ router.get('/validate_token', ctrlAuth.isLoggedIn);
 //Users.
 router.get('/users/:id', crtlUser.fetchUser);
 router.get('/users', crtlUser.fetchAllUsers);
+
+//Team.
 router.post('/team', crtlUser.createTeam);
 router.get('/team', crtlUser.getTeams);
 router.get('/teams', ctrlTeam.getTeams);
 router.get('/team/:id', ctrlTeam.getTeam);
 router.get('/teams/members/:id', ctrlTeam.getMembers);
+//router.post('/team/member', ctrlTeam.setDraft);
+
 // Projects.
 router.get('/projects/draft', ctrlProject.setDraft);
 router.post('/projects', ctrlProject.create);
