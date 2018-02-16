@@ -12,7 +12,7 @@ var cloudify = require('./image_uploader');
 var db = require('../config/db');
 var pool = mysql.createPool(db.db_credentials);
 
-exports.getProjects = async function(req, res){
+exports.getProjects = function(req, res){
 	let project;
 	pool.getConnection(function(error, connection){
 		connection.query(`SELECT	projects.id,
@@ -459,6 +459,16 @@ getProject = function(id, res){
 											WHERE projects.id = ?`, [id], function(error, results, fields){
 			if (error) throw error;
 			project = results[0];
+			if(!project){
+				connection.release();
+				res
+					.status(200)
+					.json({
+						project	
+					})
+				res.end();
+				return;
+			}
 			//Get Rewards.
 			connection.query('SELECT id, title, description, amount, delivery_date, quantity, currency, backers_count FROM `rewards` WHERE `project_id` = ?', [id], function(error, results, fields){
 				if (error) throw error;
@@ -503,8 +513,12 @@ getProject = function(id, res){
 updateProj = function(projectInfo, res){
 	var now = new Date();
 	pool.getConnection(function(error, connection){
-		connection.query('UPDATE projects SET video_url = ?, updated_at = ? WHERE id = ?', 
-			[projectInfo.video_url,
+		connection.query('UPDATE projects SET title = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, updated_at = ? WHERE id = ?', 
+			[projectInfo.title,
+			 projectInfo.category_id,
+			 projectInfo.pledged_amount,
+			 projectInfo.duration,
+			 projectInfo.video_url,
 			dateFormat(now, "isoDateTime"), 
 			projectInfo.id],
 			function(error, results, fields){

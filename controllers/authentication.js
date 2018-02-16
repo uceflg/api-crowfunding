@@ -64,10 +64,8 @@ module.exports.register = function (req, res) {
                 created_at: dateFormat(h, "isoDateTime"),
                 updated_at: dateFormat(h, "isoDateTime")
             };
-            console.log(newUserMysql.salt);
-            console.log(newUserMysql.hash);
 
-            var insertQuery = "INSERT INTO users ( name, email, hash, salt, role_id, created_at, updated_at) values (?,?,?,?,?,?)";
+            var insertQuery = "INSERT INTO users ( name, email, hash, salt, role_id, created_at, updated_at) values (?,?,?,?,?,?,?)";
 
             connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, 2, newUserMysql.salt, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
                 if (err) {
