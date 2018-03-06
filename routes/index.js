@@ -33,6 +33,7 @@ router.get('/projects', ctrlProject.getProjects);
 router.post('/projects/launch', ctrlProject.launch);
 router.get('/projects/:id', ctrlProject.fetchProject);
 router.put('/projects/:id', ctrlProject.updateProjects);
+router.get('/projects/categories/:category', ctrlProject.getProjectsByCategory);
 
 // Categories.
 router.get('/category', ctrlCategories.getAll)
