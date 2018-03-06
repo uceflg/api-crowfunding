@@ -153,7 +153,6 @@ exports.create = function(req,res){
 	const projectInfo = req.body;
 	const projectFind = new Projects();
 	const projectDraft = new Projects();
-
 	let project;
 	let rewards;
 	//project.set('id', projectInfo.id);
@@ -181,30 +180,51 @@ exports.create = function(req,res){
 
 exports.launch = function(req,res){
 	const projectInfo = req.body;
-	pool.getConnection(function(error, connection){
-		connection.query('UPDATE projects SET aasm_state = ? WHERE id = ?', 
-			['pending_approval', 
-			projectInfo.id], function(error, results, fields){
-				connection.release();
-				if(error){
-					res
-						.status(200)
-						.json({
-							status: false
-						})
-					res.end();
-					return;
-				}else{
-					res
-						.status(200)
-						.json({
-							status: true
-						})
-					res.end();
-					return;
-				}
-			});
-	});	
+	let token = req.headers.authorization;
+	let role;
+	let state;
+	jwt.verify(token, 'superSecret', function(err, decoded){
+		if(err){
+				res.status(401).send(err);
+				res.end();
+		}
+		console.log("asdsd",decoded.user);
+		pool.getConnection(function(error, connection){
+			connection.query(`SELECT	role_id
+												FROM		users
+												WHERE   id = ?
+												`,
+				[decoded.user], 
+				function(error, results, fields){
+					if(error) throw error;
+					role = results[0].role_id;
+					console.log("role",role);
+					state = role == 1 ? 'funding' : 'pending_approval';
+					connection.query('UPDATE projects SET aasm_state = ? WHERE id = ?', 
+						[state, 
+						projectInfo.id], function(error, results, fields){
+							connection.release();
+							if(error){
+								res
+									.status(200)
+									.json({
+										status: false
+									})
+								res.end();
+								return;
+							}else{
+								res
+									.status(200)
+									.json({
+										status: true
+									})
+								res.end();
+								return;
+							}
+						});
+				});
+		});
+	});
 }
 
 exports.fetchProject = function(req, res){

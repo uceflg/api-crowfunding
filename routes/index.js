@@ -24,6 +24,8 @@ router.get('/team', crtlUser.getTeams);
 router.get('/teams', ctrlTeam.getTeams);
 router.get('/team/:id', ctrlTeam.getTeam);
 router.get('/teams/members/:id', ctrlTeam.getMembers);
+router.post('/teams/members', ctrlTeam.setMember);
+router.post('/teams/dMember', ctrlTeam.deleteMember);
 //router.post('/team/member', ctrlTeam.setDraft);
 
 // Projects.
