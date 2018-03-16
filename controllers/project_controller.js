@@ -584,3 +584,56 @@ updateProj = function(projectInfo, res){
 		return;
 	});
 }
+
+exports.getProjectsByCategory = function(req, res){
+	let project;
+	let categoria = req.params.category;
+	pool.getConnection(function(error, connection){
+		connection.query(`SELECT	projects.id,
+									projects.title,
+									projects.video_url,
+									projects.pledged_amount,
+									projects.funded_amount,
+									ROUND(projects.funded_amount/projects.pledged_amount,1) AS percent_funded,
+									projects.end_date,
+									projects.funding_model,
+									projects.start_date,
+									projects.duration,
+									projects.category_id,
+									categories.name as category_name,
+									team.name as user_name,
+									projects.total_backers,
+									(SELECT pictures.url
+										FROM   pictures
+										WHERE  pictures.project_id = projects.id
+										AND    projects.id = (SELECT MIN(pictures1.id)
+																					FROM   pictures pictures1
+																					WHERE  pictures1.project_id = pictures.project_id)) as image_url,
+									projects.currency,
+									stories.body as story,
+									true as can_edit,
+									projects.aasm_state as current_state,
+									TIMESTAMPDIFF(DAY, NOW(), DATE_ADD(projects.start_date, INTERVAL projects.duration DAY)) as remaining_duration,
+									false as is_favourite_project,
+									CASE WHEN (projects.pledged_amount - projects.funded_amount) <= 0 THEN true ELSE false END as is_funded
+							FROM 		projects
+							INNER JOIN	categories 
+									ON categories.id = projects.category_id
+							INNER JOIN	team ON team.id = projects.team_id
+							LEFT JOIN	stories ON stories.project_id = projects.id
+							WHERE projects.aasm_state = 'funding'`,
+							[categoria], 
+		function(error, results, fields){
+			connection.release();
+			if (error) throw error;
+			project = results;
+			res
+				.status(200)
+				.json({
+					project	
+				})
+			res.end();
+			return;
+		});
+	});
+}
