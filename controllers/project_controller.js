@@ -37,6 +37,7 @@ exports.getProjects = function(req, res){
 																										WHERE  pictures1.project_id = pictures.project_id)) as image_url,
 														projects.currency,
 														stories.body as story,
+														projects.desc,
 														true as can_edit,
 														projects.aasm_state as current_state,
 														TIMESTAMPDIFF(DAY, NOW(), DATE_ADD(projects.start_date, INTERVAL projects.duration DAY)) as remaining_duration,
