@@ -10,6 +10,7 @@ var Rewards = require('../models/rewards');
 var Users = require('../models/users');
 var cloudify = require('./image_uploader');
 var db = require('../config/db');
+var authConfig = require('../config/auth_conf');
 var pool = mysql.createPool(db.db_credentials);
 
 exports.getProjects = function(req, res){
@@ -184,12 +185,11 @@ exports.launch = function(req,res){
 	let token = req.headers.authorization;
 	let role;
 	let state;
-	jwt.verify(token, 'superSecret', function(err, decoded){
+	jwt.verify(token, authConfig.jwt_secret, function(err, decoded){
 		if(err){
 				res.status(401).send(err);
 				res.end();
 		}
-		console.log("asdsd",decoded.user);
 		pool.getConnection(function(error, connection){
 			connection.query(`SELECT	role_id
 												FROM		users
@@ -199,7 +199,6 @@ exports.launch = function(req,res){
 				function(error, results, fields){
 					if(error) throw error;
 					role = results[0].role_id;
-					console.log("role",role);
 					state = role == 1 ? 'funding' : 'pending_approval';
 					connection.query('UPDATE projects SET aasm_state = ? WHERE id = ?', 
 						[state, 
@@ -275,6 +274,7 @@ saveProject = function(projectInfo, res){
 				
 				connection.query(`UPDATE 	projects 
 													SET 		title = ?, 
+																	desc = ?,
 																	team_id = ?, 
 																	category_id = ?, 
 																	aasm_state = ?, 
@@ -286,6 +286,7 @@ saveProject = function(projectInfo, res){
 																	duration = ?,
 																	updated_at = ?
 													WHERE   id = ?`, [projectInfo.title,
+																						projectInfo.desc,
 																						projectInfo.team_id,
 																						projectInfo.category_id,
 																						'draft',
@@ -547,13 +548,15 @@ getProject = function(id, res){
 updateProj = function(projectInfo, res){
 	var now = new Date();
 	pool.getConnection(function(error, connection){
-		connection.query('UPDATE projects SET title = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, updated_at = ? WHERE id = ?', 
+		connection.query('UPDATE projects SET title = ?, desc = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE id = ?', 
 			[projectInfo.title,
+			 projectInfo.desc,
 			 projectInfo.category_id,
 			 projectInfo.pledged_amount,
 			 projectInfo.duration,
 			 projectInfo.video_url,
-			dateFormat(now, "isoDateTime"), 
+			 dateFormat(projectInfo.start_date, 'isoDateTime'),
+			 dateFormat(now, "isoDateTime"), 
 			projectInfo.id],
 			function(error, results, fields){
 				if(projectInfo.images_data){

@@ -13,10 +13,13 @@ var ctrlTeam = require('../controllers/team_controller');
 router.post('/register', ctrlAuth.register);
 router.post('/login', ctrlAuth.login);
 router.get('/validate_token', ctrlAuth.isLoggedIn);
+router.post('/confirm_email', ctrlAuth.confirmEmail);
 
 //Users.
 router.get('/users/:id', crtlUser.fetchUser);
+router.put('/users/:id', crtlUser.updateUser);
 router.get('/users', crtlUser.fetchAllUsers);
+router.put('/users/upf/:id', crtlUser.updateProfilePic);
 
 //Team.
 router.post('/team', crtlUser.createTeam);
