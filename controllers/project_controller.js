@@ -273,6 +273,7 @@ saveProject = function(projectInfo, res){
 				
 				connection.query(`UPDATE 	projects 
 													SET 		title = ?, 
+																	desc = ?,
 																	team_id = ?, 
 																	category_id = ?, 
 																	aasm_state = ?, 
@@ -284,6 +285,7 @@ saveProject = function(projectInfo, res){
 																	duration = ?,
 																	updated_at = ?
 													WHERE   id = ?`, [projectInfo.title,
+																						projectInfo.desc,
 																						projectInfo.team_id,
 																						projectInfo.category_id,
 																						'draft',
@@ -545,8 +547,9 @@ getProject = function(id, res){
 updateProj = function(projectInfo, res){
 	var now = new Date();
 	pool.getConnection(function(error, connection){
-		connection.query('UPDATE projects SET title = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE id = ?', 
+		connection.query('UPDATE projects SET title = ?, desc = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE id = ?', 
 			[projectInfo.title,
+			 projectInfo.desc,
 			 projectInfo.category_id,
 			 projectInfo.pledged_amount,
 			 projectInfo.duration,
