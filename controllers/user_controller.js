@@ -180,13 +180,11 @@ exports.createTeam = function(req, res){
           var now = new Date();
           let url;
             if(team.images_data){
-              for(let i of team.images_data){
-                cloudify.upload_image(i, function(data){
+                cloudify.upload_image(team.images_data[0], function(data){
                   if(!data.error){
                     url = data.url;
                   }
                 });
-              }
             }
 
             let teamJson = {
