@@ -51,7 +51,12 @@ exports.getProjects = function(req, res){
 							WHERE projects.aasm_state = 'funding'`, 
 		function(error, results, fields){
 			connection.release();
-			if (error) throw error;
+			if (error){
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			project = results;
 			res
 				.status(200)
@@ -81,12 +86,24 @@ exports.setDraft = function(req, res){
 															roles
 											WHERE		users.id = ? 
 											AND 		roles.id = users.role_id`, [user], function(error, results, fields){
-			if(error) throw error;
+			if (error){
+				connection.release();
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			role = results[0];
 			if(role.name == 'admin'){
 				
 				connection.query('SELECT * FROM `projects` WHERE `team_id` IS NULL AND aasm_state = "draft"', function(error, results, fields){
-					if (error) throw error;
+					if (error){
+						connection.release();
+						res
+							.status(401)
+						res.end();
+						return;
+					}
 					project = results[0];
 					if(project){
 						getProject(project.id, res);
@@ -101,7 +118,12 @@ exports.setDraft = function(req, res){
 
 						connection.query('SELECT * FROM projects WHERE team_id IS NULL and aasm_state = "draft"', function(error, results, fields){
 							connection.release();
-							if(error) throw error;
+							if (error){
+								res
+									.status(401)
+								res.end();
+								return;
+							}
 							project = results[0];
 							res
 								.status(200)
@@ -116,7 +138,13 @@ exports.setDraft = function(req, res){
 				});
 			}else{
 				connection.query('SELECT * FROM `projects` WHERE `team_id` = ? AND aasm_state = "draft"', [user.team_id], function(error, results, fields){
-					if (error) throw error;
+					if (error){
+						connection.release();
+						res
+							.status(401)
+						res.end();
+						return;
+					}
 					project = results[0];
 					if(project){
 						getProject(project.id, res);
@@ -133,7 +161,12 @@ exports.setDraft = function(req, res){
 
 						connection.query('SELECT * FROM projects WHERE team_id = ? and aasm_state = "draft"',[role.team_id], function(error, results, fields){
 							connection.release();
-							if(error) throw error;
+							if (error){
+								res
+									.status(401)
+								res.end();
+								return;
+							}
 							project = results[0];
 							res
 								.status(200)
@@ -197,7 +230,13 @@ exports.launch = function(req,res){
 												`,
 				[decoded.user], 
 				function(error, results, fields){
-					if(error) throw error;
+					if (error){
+						connection.release();
+						res
+							.status(401)
+						res.end();
+						return;
+					}
 					role = results[0].role_id;
 					state = role == 1 ? 'funding' : 'pending_approval';
 					connection.query('UPDATE projects SET aasm_state = ? WHERE id = ?', 
@@ -259,7 +298,13 @@ saveProject = function(projectInfo, res){
 	let project;
 	pool.getConnection(function(error, connection){
 		connection.query('SELECT * FROM `projects` WHERE `id` = ? AND title IS NOT NULL', [projectInfo.id], function(error, results, fields){
-			if(error) throw error;
+			if (error){
+				connection.release();
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			project = results[0];
 			if(project){
 				var now = new Date();
@@ -299,7 +344,12 @@ saveProject = function(projectInfo, res){
 																						dateFormat(now, "isoDateTime"),
 																						projectInfo.id], function(error, results, fields){
 					connection.release();
-					if(error) throw error;
+					if (error){
+						res
+							.status(401)
+						res.end();
+						return;
+					}
 				}); //Fin Insert
 			}
 
@@ -318,15 +368,27 @@ saveRewards = function(projectInfo, res){
 	let reward;
 	pool.getConnection(function(error, connection){
 		connection.query('SELECT * FROM `projects` WHERE `id` = ?', [projectInfo.id], function(error, results, fields){
-			if (error) throw error;
+			if (error){
+				connection.release();
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			project = results[0];
 		});
 
 		
 		for(i in rowsRewards){
 			connection.query('SELECT * FROM `rewards` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, rowsRewards[i].id], function(error, results, fields){
-				if(error) throw error;
-				reward = results	[0];
+				if (error){
+					connection.release();
+					res
+						.status(401)
+					res.end();
+					return;
+				}
+				reward = results[0];
 				if(reward){
 					var now = new Date();
 					connection.query('UPDATE rewards SET title = ?, description = ?, amount = ?, updated_at = ?, delivery_date = ?, quantity = ? WHERE id = ?', 
@@ -356,7 +418,12 @@ saveRewards = function(projectInfo, res){
 
 					connection.query('INSERT INTO rewards SET ?', rewardSave, function(error, results, fields){
 						connection.release();
-						if(error) throw error;
+						if (error){
+							res
+								.status(401)
+							res.end();
+							return;
+						}
 					}); //Fin Insert	
 				}
 			});
@@ -375,7 +442,13 @@ saveStory = function(projectInfo, res){
 	let story;
 	pool.getConnection(function(error, connection){
 		connection.query('SELECT * FROM stories WHERE project_id = ? AND id = ?', [projectInfo.id, storySave.id], function(error, results, fields){
-			if(error) throw error;
+			if (error){
+				connection.release();
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			story = results[0];
 			if(story){
 				console.log(story);
@@ -384,9 +457,12 @@ saveStory = function(projectInfo, res){
 					[dateFormat(now, "isoDateTime"), 
 					storySave.body, 
 					story.id], function(error, results, fields){
-						if(error){
-							console.log(error);
-							throw error
+						if (error){
+							connection.release();
+							res
+								.status(401)
+							res.end();
+							return;
 						}else{
 							console.log("guarde ctm");
 							console.log(results);
@@ -407,7 +483,12 @@ saveStory = function(projectInfo, res){
 
 				connection.query('INSERT INTO stories SET ?', storyJson, function(error, results, fields){
 					connection.release();
-					if(error) throw error;
+					if (error){
+						res
+							.status(401)
+						res.end();
+						return;
+					}
 					getProject(projectInfo.id, res);
 				}); //Fin Insert	
 				
@@ -425,7 +506,13 @@ saveFaqs = function(projectInfo, res){
 	pool.getConnection(function(error, connection){
 		for(i in rowsFaqs){
 			connection.query('SELECT * FROM `faqs` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, rowsFaqs[i].id], function(error, results, fields){
-				if(error) throw error;
+				if (error){
+					connection.release();
+					res
+						.status(401)
+					res.end();
+					return;
+				}
 				faqs = results[0];
 				if(faqs){
 					var now = new Date();
@@ -447,7 +534,13 @@ saveFaqs = function(projectInfo, res){
 					};
 
 					connection.query('INSERT INTO faqs SET ?', rewardSave, function(error, results, fields){
-						if(error) throw error;
+						if (error){
+							connection.release();
+							res
+								.status(401)
+							res.end();
+							return;
+						}
 					}); //Fin Insert	
 				}
 			});
@@ -492,7 +585,13 @@ getProject = function(id, res){
 											INNER JOIN	categories ON categories.id = projects.category_id
 											LEFT JOIN	team ON team.id = projects.team_id
 											WHERE projects.id = ?`, [id], function(error, results, fields){
-			if (error) throw error;
+			if (error){
+				connection.release();
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			project = results[0];
 			if(!project){
 				connection.release();
@@ -506,27 +605,56 @@ getProject = function(id, res){
 			}
 			//Get Rewards.
 			connection.query('SELECT id, title, description, amount, delivery_date, quantity, currency, backers_count FROM `rewards` WHERE `project_id` = ?', [id], function(error, results, fields){
-				if (error) throw error;
+				if (error){
+					connection.release();
+					res
+						.status(401)
+					res.end();
+					return;
+				}
 				rewards = results;
 				rewards ? project.rewards = rewards : [];
 				//Get Stories.
 				connection.query('SELECT id, body FROM `stories` WHERE `project_id` = ?', [id], function(error, results, fields){
-					if (error) throw error;
+					if (error){
+						connection.release();
+						res
+							.status(401)
+						res.end();
+						return;
+					}
 					story = results[0];
 					story ? project.story = story : {};
 					//Get Faqs.
 					connection.query('SELECT id, question, answer FROM `faqs` WHERE `project_id` = ?', [id], function(error, results, fields){
-						if (error) throw error;
+						if (error){
+							connection.release();
+							res
+								.status(401)
+							res.end();
+							return;
+						}
 						faqs = results;
 						faqs ? project.faqs = faqs : [];
 						//Get Pictures.
 						connection.query('SELECT id, url FROM `pictures` WHERE `project_id` = ?', [id], function(error, results, fields){
-							if (error) throw error;
+							if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
 							pictures = results;
 							pictures ? project.pictures = pictures : [];
 							connection.query('SELECT id, name, logo_url, description FROM team WHERE id = ?', [project.team_id], function(error, results, fields){
 								connection.release();
-								if(error) throw error;
+								if (error){
+									res
+										.status(401)
+									res.end();
+									return;
+								}
 								team = results[0];
 								team ? project.team = team : {};
 								res
@@ -564,7 +692,13 @@ updateProj = function(projectInfo, res){
 						cloudify.upload_image(i, function(data){
 							if(!data.error){
 								connection.query(`INSERT INTO pictures(url, created_at, updated_at, project_id) VALUES (?, ? ,? ,?) `, [data.url, dateFormat(now, "isoDateTime"), dateFormat(now, "isoDateTime"), projectInfo.id], function(error, results, fields){
-									if(error) throw error;
+									if (error){
+										connection.release();
+										res
+											.status(401)
+										res.end();
+										return;
+									}
 									
 								})
 							}
@@ -577,7 +711,13 @@ updateProj = function(projectInfo, res){
 				for(let i of projectInfo.pictures_attributes){
 					if(i._destoy){
 						connection.query('DELETE FROM pictures WHERE id = ?', i.id, function(error, results, fields){
-							if(error) throw error;
+							if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
 						})
 					}
 				}
@@ -629,7 +769,12 @@ exports.getProjectsByCategory = function(req, res){
 							[categoria], 
 		function(error, results, fields){
 			connection.release();
-			if (error) throw error;
+			if (error){
+				res
+					.status(401)
+				res.end();
+				return;
+			}
 			project = results;
 			res
 				.status(200)

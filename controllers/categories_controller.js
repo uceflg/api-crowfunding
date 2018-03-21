@@ -15,7 +15,12 @@ exports.getAll = function(req, res){
         let categories;
         connection.query('SELECT id, name FROM `categories`', function(error, results, fields){
             connection.release();
-            if (error) throw error;
+            if (error){
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
             categories = results;
             res.status(200).json({
                 categories

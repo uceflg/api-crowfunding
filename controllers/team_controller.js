@@ -15,7 +15,12 @@ exports.getTeams = function(req, res){
                       FROM		team`, 
       function(error, results, fields){
         connection.release();
-        if (error) throw error;
+        if (error){
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         teams = results;
         res
           .status(200)
@@ -47,7 +52,12 @@ exports.getTeam = function(req, res){
                       [teamInfo.id], 
       function(error, results, fields){
         connection.release();
-        if (error) throw error;
+        if (error){
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         teams = results;
         res
           .status(200)
@@ -77,7 +87,12 @@ exports.getMembers = function(req, res){
                       [teamId.id], 
       function(error, results, fields){
         connection.release();
-        if (error) throw error;
+        if (error){
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         members = results;
         res
           .status(200)
@@ -101,13 +116,25 @@ exports.setMember = function(req, res){
                       `,
                       [memberInfo.email], 
       function(error, results, fields){
-        if (error) throw error;
+        if (error){
+          connection.release();
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         user = results[0];
         if(user){ 
           if(memberInfo.editor == '1'){
             //Ver si el usuario existe como editor de otro team.
             connection.query(`SELECT * FROM user_team WHERE user_id = ? AND team_id <> ? AND (editor = 1 OR leader = 1)`, [user.id, memberInfo.team], function(error, rows, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               member = rows[0]
               if(member){
                 connection.release();
@@ -122,10 +149,23 @@ exports.setMember = function(req, res){
               }else{
                 //Ver si el usuario ya existe 
                 connection.query(`SELECT * FROM user_team WHERE user_id = ? AND team_id = ?`, [user.id, memberInfo.team], function(error, rows, fields){
-                  if(error) throw error;
+                  if (error){
+                    connection.release();
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
                   member = rows[0]
                   if(member){
                     connection.query(`UPDATE user_team SET editor = ? WHERE user_id = ? AND team_id = ?`, [true, user.id, memberInfo.team], function(error, rows, fields){
+                      if (error){
+                        connection.release();
+                        res
+                          .status(401)
+                        res.end();
+                        return;
+                      }
                       res
                         .status(200)
                         .json({
@@ -136,6 +176,13 @@ exports.setMember = function(req, res){
                     });
                   }else{
                     connection.query(`INSERT INTO user_team(user_id, team_id, leader, editor) SET(?,?,?,?)`, [user.id, memberInfo.team, false, true], function(error, rows, fields){
+                      if (error){
+                        connection.release();
+                        res
+                          .status(401)
+                        res.end();
+                        return;
+                      }
                       res
                         .status(200)
                         .json({
@@ -152,10 +199,23 @@ exports.setMember = function(req, res){
             //No es editor pero se verifica el usuario igual.
             //Ver si el usuario ya existe 
             connection.query(`SELECT * FROM user_team WHERE user_id = ? AND team_id = ?`, [user.id, memberInfo.team], function(error, rows, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               member = rows[0]
               if(member){
                 connection.query(`UPDATE user_team SET editor = ? WHERE user_id = ? AND team_id = ?`, [false, user.id, memberInfo.team], function(error, rows, fields){
+                  if (error){
+                    connection.release();
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
                   res
                     .status(200)
                     .json({
@@ -172,6 +232,13 @@ exports.setMember = function(req, res){
                   editor: false
                 }
                 connection.query(`INSERT INTO user_team SET ?`, [memberJson], function(error, rows, fields){
+                  if (error){
+                    connection.release();
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
                   res
                     .status(200)
                     .json({
@@ -211,16 +278,26 @@ exports.deleteMember = function(req, res){
                       `,
                       [memberInfo.email], 
       function(error, results, fields){
-        if (error) throw error;
+        if (error){
+          connection.release();
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         user = results[0];
         if(user){
           connection.query(`SELECT  *
                             FROM    user_team
                             WHERE   user_id = ?
                             AND     team_id = ?`, [user.id, memberInfo.team], function(error, results, fields){
-            if(error){
-              throw error;
-            }
+            if (error){
+          connection.release();
+          res
+            .status(401)
+          res.end();
+          return;
+        }
             member = results[0];
             if(member.leader == 1){
               connection.release();
@@ -237,6 +314,13 @@ exports.deleteMember = function(req, res){
                             WHERE  user_id = ?
                             AND    team_id = ?`, [user.id, memberInfo.team], function(error, results, fields){
                 connection.release();
+                if (error){
+                  
+                  res
+                    .status(401)
+                  res.end();
+                  return;
+                }
                 res
                   .status(200)
                   .json({

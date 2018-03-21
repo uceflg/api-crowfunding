@@ -21,7 +21,13 @@ exports.updateProfilePic = function(req, res){
         pool.getConnection(function(error, connection){
           var now = new Date();
           connection.query(`UPDATE users SET image_url = ?, updated_at = ? WHERE id = ? `, [data.url, dateFormat(now, "isoDateTime"), id], function(error, results, fields){
-            if(error) throw error;
+            if (error){
+              connection.release();
+              res
+                .status(401)
+              res.end();
+              return;
+            }
             connection.release();
             fetchUser(req, res);
           })
@@ -61,7 +67,13 @@ exports.updateUser = function(req, res){
          dateFormat(now, "isoDateTime"),
          dateFormat(now, "isoDateTime")],
         function(error, results, fields){
-          if (error) throw error;
+          if (error){
+            connection.release();
+            res
+              .status(401)
+            res.end();
+            return;
+          }
           connection.query(`UPDATE users SET name = ?, phone_no = ?, updated_at = ? WHERE id = ?`, 
             [newData.name, newData.phone_no, dateFormat(now, "isoDateTime"), userId], 
             function(error, results, fields){
@@ -89,7 +101,13 @@ exports.updateUser = function(req, res){
          newData.address_attributes.id,
          userId],
         function(error, results, fields){
-          if (error) throw error;
+          if (error){
+            connection.release();
+            res
+              .status(401)
+            res.end();
+            return;
+          }
           connection.query(`UPDATE users SET name = ?, phone_no = ?, updated_at = ? WHERE id = ?`, 
             [newData.name, newData.phone_no, dateFormat(now, "isoDateTime"), userId], 
             function(error, results, fields){
@@ -143,7 +161,12 @@ exports.fetchAllUsers = function(req, res){
                       AND		roles.name <> 'admin'`, 
       function(error, results, fields){
         connection.release();
-        if (error) throw error;
+        if (error){
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         users = results;
         res
           .status(200)
@@ -162,7 +185,13 @@ exports.createTeam = function(req, res){
   pool.getConnection(function(error, connection){
     if(team.id == ''){
       connection.query('SELECT * FROM team WHERE UPPER(name) = ?', [(team.name).toUpperCase()], function(error, results, fields){
-        if(error) throw error;
+        if (error){
+          connection.release();
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         teamResult = results[0];
         if(teamResult){
           connection.release();
@@ -200,20 +229,35 @@ exports.createTeam = function(req, res){
               created_at: dateFormat(now, "isoDateTime"),
               updated_at: dateFormat(now, "isoDateTime")
             };
-            console.log(team.representative)
 
             connection.query('INSERT INTO team SET ?', teamJson, function(error, results, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               let newTeam;
               let existe;
               connection.query('SELECT * FROM team WHERE UPPER(name) = ?',[(team.name).toUpperCase()], function(error, results, fields){
-                if(error) throw error;
+                if (error){
+                  connection.release();
+                  res
+                    .status(401)
+                  res.end();
+                  return;
+                }
                 newTeam = results[0];
-                console.log("team",newTeam);
                 connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
-                  if(error) throw error;
+                  if (error){
+                    connection.release();
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
                   existe = results[0];
-                  console.log("existe",results[0]);
                   if(existe){
                     connection.query('UPDATE user_team SET leader = 1, editor = 1 WHERE user_id = ?',[team.representative]);
                   }else{
@@ -245,21 +289,47 @@ exports.createTeam = function(req, res){
         let existe;
         let quitar;
         connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
-          if(error) throw error;
+          if (error){
+            connection.release();
+            res
+              .status(401)
+            res.end();
+            return;
+          }
           existe = results[0];
           if(existe){
             connection.query('UPDATE user_team SET leader = 1, editor = 1 WHERE user_id = ? AND team_id = ?',[team.representative, team.id]);
             connection.query('SELECT * FROM user_team WHERE user_id <> ? AND team_id = ?', [team.representative, team.id], function(error, results, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               quitar = results[0];
               if(quitar){
-                connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id]);
+                connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id], function(error, results, fields){
+                  if (error){
+                    connection.release();
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
+                });
               }
             });
           }else{
             connection.query('INSERT INTO user_team(user_id, team_id, leader, editor) VALUES(?, ?, ?, ?)',[team.representative, team.id, true, true]);
             connection.query('SELECT * FROM user_team WHERE user_id <> ? AND team_id = ?', [team.representative, team.id], function(error, results, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               quitar = results[0];
               if(quitar){
                 connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id]);
@@ -290,7 +360,12 @@ exports.getTeams = function(req, res){
                       FROM		team`, 
       function(error, results, fields){
         connection.release();
-        if (error) throw error;
+        if (error){
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         teams = results;
         res
           .status(200)
@@ -347,7 +422,13 @@ fetchUser = function(req, res){
                       AND   	users.role_id = roles.id
                       `, [userInfo.id], 
       function(error, results, fields){
-        if (error) throw error;
+        if (error){
+          connection.release();
+          res
+            .status(401)
+          res.end();
+          return;
+        }
         user = results[0];
         if(user.role_name == 'admin'){
           connection.query(`SELECT	projects.id,
@@ -375,7 +456,13 @@ fetchUser = function(req, res){
                             INNER JOIN	team ON team.id = projects.team_id
                             LEFT JOIN	stories ON stories.project_id = projects.id`, 
             function(error, results, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               user.projects = results;
               connection.query(`SELECT  id,
                                         street_address,
@@ -387,7 +474,12 @@ fetchUser = function(req, res){
                 [userInfo.id],
                 function(error,results, fields){
                   connection.release();
-                  if(error) throw error;
+                  if (error){
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
                   user.address = results[0];
                   res
                     .status(200)
@@ -429,7 +521,13 @@ fetchUser = function(req, res){
                             AND		  team.id = projects.team_id
                             AND		  stories.project_id = projects.id`, user.team_id, 
             function(error, results, fields){
-              if(error) throw error;
+              if (error){
+                connection.release();
+                res
+                  .status(401)
+                res.end();
+                return;
+              }
               user.projects = results;
               connection.query(`SELECT  id,
                                         street_address,
@@ -441,7 +539,12 @@ fetchUser = function(req, res){
                 [userInfo.id],
                 function(error, results, fields){
                   connection.release();
-                  if(error) throw error;
+                  if (error){
+                    res
+                      .status(401)
+                    res.end();
+                    return;
+                  }
                   user.address = results[0];
                   res
                     .status(200)
