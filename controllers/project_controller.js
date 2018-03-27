@@ -222,6 +222,7 @@ exports.launch = function(req,res){
 		if(err){
 				res.status(401).send(err);
 				res.end();
+				return;
 		}
 		pool.getConnection(function(error, connection){
 			connection.query(`SELECT	role_id
@@ -516,12 +517,36 @@ saveFaqs = function(projectInfo, res){
 				faqs = results[0];
 				if(faqs){
 					var now = new Date();
-					connection.query('UPDATE faqs SET question = ?, answer = ?, project_id = ?, updated_at = ?, WHERE id = ?', 
+					var faqsid = rowsFaqs[i].id;
+					console.log(rowsFaqs[i].question);
+					console.log(rowsFaqs[i].answer);
+					console.log(projectInfo.id);
+					console.log(dateFormat(now, "isoDateTime"));
+					console.log(rowsFaqs[i].id);
+					connection.query('UPDATE faqs SET faqs.question = ?, faqs.answer = ?, faqs.project_id = ?, faqs.updated_at = ?, WHERE `faqs.id` = 5', 
 						[rowsFaqs[i].question, 
 						rowsFaqs[i].answer, 
 						projectInfo.id, 
-						dateFormat(now, "isoDateTime"),
-						rowsFaqs[i].id]);
+						dateFormat(now, "isoDateTime")
+						//,rowsFaqs[i].id
+					]
+						, function(error, results, fields){
+							if (error){
+								console.log("error no inserto");
+								console.log(results);
+								console.log(error);
+								/*connection.release();
+								res
+									.status(401)
+								res.end();
+								return;*/
+							}else{
+								console.log("guarde ctm");
+								console.log(results);
+							}
+						}
+					
+					);
 				}else{
 					var now = new Date();
 
@@ -675,6 +700,7 @@ getProject = function(id, res){
 
 updateProj = function(projectInfo, res){
 	var now = new Date();
+	console.log(projectInfo);
 	pool.getConnection(function(error, connection){
 		connection.query('UPDATE projects SET title = ?, desc = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE id = ?', 
 			[projectInfo.title,
@@ -725,6 +751,7 @@ updateProj = function(projectInfo, res){
 				getProject(projectInfo.id, res);
 			}
 		);
+		if(error){console.log(error);}
 		return;
 	});
 }

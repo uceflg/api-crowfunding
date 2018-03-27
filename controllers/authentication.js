@@ -269,6 +269,7 @@ module.exports.isLoggedIn = function (req, res) {
                 user: rows[0]
             });
             res.end();
+            return;
         });
 
         
