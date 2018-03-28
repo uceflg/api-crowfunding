@@ -523,12 +523,12 @@ saveFaqs = function(projectInfo, res){
 					console.log(projectInfo.id);
 					console.log(dateFormat(now, "isoDateTime"));
 					console.log(rowsFaqs[i].id);
-					connection.query('UPDATE faqs SET faqs.question = ?, faqs.answer = ?, faqs.project_id = ?, faqs.updated_at = ?, WHERE `faqs.id` = 5', 
+					connection.query('UPDATE faqs SET question = ?, answer = ?, project_id = ?, updated_at = ? WHERE `id` = ?', 
 						[rowsFaqs[i].question, 
 						rowsFaqs[i].answer, 
 						projectInfo.id, 
-						dateFormat(now, "isoDateTime")
-						//,rowsFaqs[i].id
+						dateFormat(now, "isoDateTime"),
+						rowsFaqs[i].id
 					]
 						, function(error, results, fields){
 							if (error){
@@ -672,7 +672,7 @@ getProject = function(id, res){
               }
 							pictures = results;
 							pictures ? project.pictures = pictures : [];
-							connection.query('SELECT id, name, logo_url, description FROM team WHERE id = ?', [project.team_id], function(error, results, fields){
+							connection.query('SELECT `id`, `name`, logo_url, description FROM team WHERE `id` = ?', [project.team_id], function(error, results, fields){
 								connection.release();
 								if (error){
 									res
@@ -702,7 +702,7 @@ updateProj = function(projectInfo, res){
 	var now = new Date();
 	console.log(projectInfo);
 	pool.getConnection(function(error, connection){
-		connection.query('UPDATE projects SET title = ?, desc = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE id = ?', 
+		connection.query('UPDATE projects SET title = ?, desc = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE `id` = ?', 
 			[projectInfo.title,
 			 projectInfo.desc,
 			 projectInfo.category_id,
