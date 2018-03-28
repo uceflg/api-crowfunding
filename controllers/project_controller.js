@@ -222,7 +222,7 @@ exports.launch = function(req,res){
 		if(err){
 				res.status(401).send(err);
 				res.end();
-				return;
+				//return;
 		}
 		pool.getConnection(function(error, connection){
 			connection.query(`SELECT	role_id
@@ -276,6 +276,7 @@ exports.updateProjects = function(req, res){
 	let projectInfo = req.body;
 	switch(projectInfo.type){
 		case 'project': {
+			console.log('pase por updateprojects');
 			updateProj(projectInfo, res);
 			break;
 		}
@@ -309,7 +310,8 @@ saveProject = function(projectInfo, res){
 			project = results[0];
 			if(project){
 				var now = new Date();
-				connection.query('UPDATE projects SET video_url = ?, team_id = ?, updated_at = ? WHERE id = ?', 
+				console.log('pase por if de update');
+				connection.query('UPDATE projects SET video_url = ?, team_id = ?, updated_at = ? WHERE `id` = ?', 
 					[projectInfo.video_url,
 					projectInfo.team_id,
 					dateFormat(now, "isoDateTime"), 
@@ -317,21 +319,10 @@ saveProject = function(projectInfo, res){
 					connection.release();
 			}else{
 				var now = new Date();
-				
-				connection.query(`UPDATE 	projects 
-													SET 		title = ?, 
-																	desc = ?,
-																	team_id = ?, 
-																	category_id = ?, 
-																	aasm_state = ?, 
-																	video_url = ?, 
-																	pledged_amount = ?,
-																	funding_model = ?,
-																	start_date = ?,
-																	currency = ?,
-																	duration = ?,
-																	updated_at = ?
-													WHERE   id = ?`, [projectInfo.title,
+				console.log('pase por else de update');
+				console.log(projectInfo.desc);
+				connection.query('UPDATE 	projects SET title = ?, `desc` = ?,team_id = ?, category_id = ?, aasm_state = ?, video_url = ?, pledged_amount = ?,funding_model = ?,start_date = ?,currency = ?,duration = ?,updated_at = ? WHERE   `id` = ?'
+																					, [projectInfo.title,
 																						projectInfo.desc,
 																						projectInfo.team_id,
 																						projectInfo.category_id,
@@ -346,6 +337,8 @@ saveProject = function(projectInfo, res){
 																						projectInfo.id], function(error, results, fields){
 					connection.release();
 					if (error){
+						console.log('se encontro error')
+						console.log(error);
 						res
 							.status(401)
 						res.end();
@@ -702,7 +695,7 @@ updateProj = function(projectInfo, res){
 	var now = new Date();
 	console.log(projectInfo);
 	pool.getConnection(function(error, connection){
-		connection.query('UPDATE projects SET title = ?, desc = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE `id` = ?', 
+		connection.query('UPDATE projects SET title = ?, `desc` = ?, category_id = ?, pledged_amount= ?, duration = ?, video_url = ?, start_date = ?, updated_at = ? WHERE `id` = ?', 
 			[projectInfo.title,
 			 projectInfo.desc,
 			 projectInfo.category_id,
