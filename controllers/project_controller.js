@@ -581,6 +581,7 @@ getProject = function(id, res){
 	pool.getConnection(function(error, connection){
 		connection.query(`SELECT 	projects.id,
 															projects.title,
+															projects.desc,
 															projects.video_url,
 															projects.pledged_amount,
 															projects.currency,
