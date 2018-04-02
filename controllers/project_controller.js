@@ -218,17 +218,18 @@ exports.launch = function(req,res){
 	let token = req.headers.authorization;
 	let role;
 	let state;
-	jwt.verify(token, authConfig.jwt_secret, function(err, decoded){
-		if(err){
+	console.log('antes de verify');
+	//jwt.verify(token, authConfig.jwt_secret, function(err, decoded){
+		/*if(err){
 				res.status(401).send(err);
 				res.end();
-				//return;
+				console.log(err);
+				return;
 		}
+		console.log('antes de conexion');*/
 		pool.getConnection(function(error, connection){
-			connection.query(`SELECT	role_id
-												FROM		users
-												WHERE   id = ?
-												`,
+			/*console.log('entrando a select');
+			connection.query('SELECT role_id FROM users WHERE   `id` = ?' ,
 				[decoded.user], 
 				function(error, results, fields){
 					if (error){
@@ -239,8 +240,11 @@ exports.launch = function(req,res){
 						return;
 					}
 					role = results[0].role_id;
-					state = role == 1 ? 'funding' : 'pending_approval';
-					connection.query('UPDATE projects SET aasm_state = ? WHERE id = ?', 
+					state = role == 1 ? 'funding' : 'draft';//'pending_approval';*/
+					console.log('entrar a update');
+					console.log(projectInfo);
+					state = 'funding';
+					connection.query('UPDATE projects SET aasm_state = ? WHERE `id` = ?', 
 						[state, 
 						projectInfo.id], function(error, results, fields){
 							connection.release();
@@ -251,6 +255,7 @@ exports.launch = function(req,res){
 										status: false
 									})
 								res.end();
+								console.log(error);
 								return;
 							}else{
 								res
@@ -259,12 +264,14 @@ exports.launch = function(req,res){
 										status: true
 									})
 								res.end();
+								console.log('aca');
 								return;
 							}
 						});
-				});
+						console.log('paso update');
+				//});
 		});
-	});
+	//});
 }
 
 exports.fetchProject = function(req, res){
@@ -308,16 +315,17 @@ saveProject = function(projectInfo, res){
 				return;
 			}
 			project = results[0];
-			if(project){
+			/*if(project){
 				var now = new Date();
 				console.log('pase por if de update');
+				console.log(projectInfo);
 				connection.query('UPDATE projects SET video_url = ?, team_id = ?, updated_at = ? WHERE `id` = ?', 
 					[projectInfo.video_url,
 					projectInfo.team_id,
 					dateFormat(now, "isoDateTime"), 
 					projectInfo.id]);
 					connection.release();
-			}else{
+			}else{*/
 				var now = new Date();
 				console.log('pase por else de update');
 				console.log(projectInfo.desc);
@@ -345,7 +353,7 @@ saveProject = function(projectInfo, res){
 						return;
 					}
 				}); //Fin Insert
-			}
+			//}
 
 			getProject(projectInfo.id, res);
 
@@ -435,7 +443,7 @@ saveStory = function(projectInfo, res){
 	console.log(projectInfo.id);
 	let story;
 	pool.getConnection(function(error, connection){
-		connection.query('SELECT * FROM stories WHERE project_id = ? AND id = ?', [projectInfo.id, storySave.id], function(error, results, fields){
+		connection.query('SELECT * FROM stories WHERE project_id = ? AND `id` = ?', [projectInfo.id, storySave.id], function(error, results, fields){
 			if (error){
 				connection.release();
 				res
@@ -447,7 +455,7 @@ saveStory = function(projectInfo, res){
 			if(story){
 				console.log(story);
 				var now = new Date();
-				connection.query('UPDATE stories SET updated_at = ?, body = ? WHERE id = ?', 
+				connection.query('UPDATE stories SET updated_at = ?, body = ? WHERE `id` = ?', 
 					[dateFormat(now, "isoDateTime"), 
 					storySave.body, 
 					story.id], function(error, results, fields){
