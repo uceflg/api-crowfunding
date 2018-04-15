@@ -208,13 +208,13 @@ exports.createTeam = function(req, res){
           //Crear nuevo Team.
           var now = new Date();
           let url;
-            if(team.images_data){
+            /*if(team.images_data){
                 cloudify.upload_image(team.images_data[0], function(data){
                   if(!data.error){
                     url = data.url;
                   }
                 });
-            }
+            }*/
             
             let teamJson = {
               name: team.name,
@@ -249,6 +249,24 @@ exports.createTeam = function(req, res){
                   return;
                 }
                 newTeam = results[0];
+                console.log(newTeam);
+                //Agregado para update
+                if(team.images_data){
+                  cloudify.upload_image(team.images_data[0], function(data){
+                  if(!data.error){
+                    url = data.url;
+                    connection.query('UPDATE team SET logo_url = ? WHERE `id` = ?' 
+                      ,[url,
+                        newTeam.id]
+                      , function(error, results, fields){
+                        if (error){console.log(error);}else{console.log(results);}
+                      }
+                    );
+                    console.log(url);
+                  }
+                  });
+                }
+                //fin agregado update
                 connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
                   if (error){
                     connection.release();
