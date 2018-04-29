@@ -33,7 +33,7 @@ exports.getProjects = function(req, res){
 														(SELECT pictures.url
 															FROM   pictures
 															WHERE  pictures.project_id = projects.id
-															AND    projects.id = (SELECT MIN(pictures1.id)
+															AND    pictures.id = (SELECT MIN(pictures1.id)
 																										FROM   pictures pictures1
 																										WHERE  pictures1.project_id = pictures.project_id)) as image_url,
 														projects.currency,
@@ -353,6 +353,26 @@ saveProject = function(projectInfo, res){
 						return;
 					}
 				}); //Fin Insert
+				//agregado 27/04/2018
+				for(let i of projectInfo.images_data){
+					cloudify.upload_image(i, function(data){
+						if(!data.error){
+							connection.query(`INSERT INTO pictures(url, created_at, updated_at, project_id) VALUES (?, ? ,? ,?) `, [data.url, dateFormat(now, "isoDateTime"), dateFormat(now, "isoDateTime"), projectInfo.id], function(error, results, fields){
+								if (error){
+									connection.release();
+									res
+										.status(401)
+									res.end();
+									return;
+								}
+								
+							})
+						}
+						else{
+							console.log(data.error);
+						}
+					});
+				}//fin agregado 27/04/2018
 			//}
 
 			getProject(projectInfo.id, res);
@@ -717,6 +737,7 @@ updateProj = function(projectInfo, res){
 			function(error, results, fields){
 				if(projectInfo.images_data){
 					for(let i of projectInfo.images_data){
+						console.log(i);
 						cloudify.upload_image(i, function(data){
 							if(!data.error){
 								connection.query(`INSERT INTO pictures(url, created_at, updated_at, project_id) VALUES (?, ? ,? ,?) `, [data.url, dateFormat(now, "isoDateTime"), dateFormat(now, "isoDateTime"), projectInfo.id], function(error, results, fields){
@@ -779,7 +800,7 @@ exports.getProjectsByCategory = function(req, res){
 									(SELECT pictures.url
 										FROM   pictures
 										WHERE  pictures.project_id = projects.id
-										AND    projects.id = (SELECT MIN(pictures1.id)
+										AND    pictures.id = (SELECT MIN(pictures1.id)
 																					FROM   pictures pictures1
 																					WHERE  pictures1.project_id = pictures.project_id)) as image_url,
 									projects.currency,
