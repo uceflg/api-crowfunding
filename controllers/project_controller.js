@@ -388,6 +388,7 @@ saveRewards = function(projectInfo, res){
 	let project;
 	let rowsRewards = projectInfo.rewards_attributes;
 	let reward;
+	//console.log(projectInfo);
 	pool.getConnection(function(error, connection){
 		connection.query('SELECT * FROM `projects` WHERE `id` = ?', [projectInfo.id], function(error, results, fields){
 			if (error){
@@ -402,6 +403,9 @@ saveRewards = function(projectInfo, res){
 
 		
 		for(i in rowsRewards){
+			console.log(rowsRewards[i]);
+			console.log("*************");
+			//console.log(rowsRewards[i].amount);
 			connection.query('SELECT * FROM `rewards` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, rowsRewards[i].id], function(error, results, fields){
 				if (error){
 					connection.release();
@@ -409,9 +413,14 @@ saveRewards = function(projectInfo, res){
 						.status(401)
 					res.end();
 					return;
-				}
+				}else{
 				reward = results[0];
+				console.log(rowsRewards[i]);
+				console.log(reward);
+				
 				if(reward){
+					console.log(rowsRewards[i]);
+					console.log("-----------");
 					var now = new Date();
 					connection.query('UPDATE rewards SET title = ?, description = ?, amount = ?, updated_at = ?, delivery_date = ?, quantity = ? WHERE id = ?', 
 						[rowsRewards[i].title, 
@@ -448,6 +457,7 @@ saveRewards = function(projectInfo, res){
 						}
 					}); //Fin Insert	
 				}
+			}//agregado 02/05/2018
 			});
 		}
 
