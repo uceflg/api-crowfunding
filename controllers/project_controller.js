@@ -1,5 +1,5 @@
 //var LocalStrategy = require('passport-local').Strategy;
-
+var async = require('async');
 var mysql = require('mysql');
 var crypto = require('crypto');
 var jwt = require('jsonwebtoken');
@@ -401,13 +401,15 @@ saveRewards = function(projectInfo, res){
 			project = results[0];
 		});
 
-		
-		for(i in rowsRewards){
-			console.log(rowsRewards[i]);
+		async.forEachOf(rowsRewards, function (elem, key, callback) {
+		//for(i in rowsRewards){
+			//console.log(rowsRewards);
+			console.log(elem);
 			console.log("*************");
 			//console.log(rowsRewards[i].amount);
-			connection.query('SELECT * FROM `rewards` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, rowsRewards[i].id], function(error, results, fields){
-				if (error){
+			connection.query('SELECT * FROM `rewards` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id,elem.id], function(error, results, fields){
+		/*	connection.query('SELECT * FROM `rewards` WHERE `project_id` = ? AND `id` = ?', [projectInfo.id, rowsRewards[i].id], function(error, results, fields){
+			*/	if (error){
 					connection.release();
 					res
 						.status(401)
@@ -415,25 +417,47 @@ saveRewards = function(projectInfo, res){
 					return;
 				}else{
 				reward = results[0];
-				console.log(rowsRewards[i]);
-				console.log(reward);
+				//console.log(rowsRewards[i]);
+				//console.log(reward);
 				
 				if(reward){
-					console.log(rowsRewards[i]);
+					//console.log(rowsRewards[i]);
+					console.log(elem);
 					console.log("-----------");
 					var now = new Date();
 					connection.query('UPDATE rewards SET title = ?, description = ?, amount = ?, updated_at = ?, delivery_date = ?, quantity = ? WHERE id = ?', 
+						[elem.title, 
+						elem.description, 
+						elem.amount, 
+						dateFormat(now, "isoDateTime"), 
+						dateFormat(elem.delivery_date, 'isoDateTime'), 
+						elem.quantity, 
+						elem.id]);
+					/*connection.query('UPDATE rewards SET title = ?, description = ?, amount = ?, updated_at = ?, delivery_date = ?, quantity = ? WHERE id = ?', 
 						[rowsRewards[i].title, 
 						rowsRewards[i].description, 
 						rowsRewards[i].amount, 
 						dateFormat(now, "isoDateTime"), 
 						dateFormat(rowsRewards[i].delivery_date, 'isoDateTime'), 
 						rowsRewards[i].quantity, 
-						rowsRewards[i].id]);
+						rowsRewards[i].id]);*/
 				}else{
 					var now = new Date();
-
 					let rewardSave = {
+						title: elem.title,
+						description: elem.description,
+						amount: elem.amount,
+						project_id: projectInfo.id,
+						created_at: dateFormat(now, "isoDateTime"),
+						updated_at: dateFormat(now, "isoDateTime"),
+						delivery_date: dateFormat(elem.delivery_date, 'isoDateTime'),
+						quantity: elem.quantity,
+						currency: 'CLP',
+						backers_count: 0,
+						contain_shipping_locations: elem.contain_shipping_locations
+					};
+
+					/*let rewardSave = {
 						title: projectInfo.rewards_attributes[i].title,
 						description: projectInfo.rewards_attributes[i].description,
 						amount: projectInfo.rewards_attributes[i].amount,
@@ -445,7 +469,7 @@ saveRewards = function(projectInfo, res){
 						currency: 'CLP',
 						backers_count: 0,
 						contain_shipping_locations: projectInfo.rewards_attributes[i].contain_shipping_locations
-					};
+					};*/
 
 					connection.query('INSERT INTO rewards SET ?', rewardSave, function(error, results, fields){
 						connection.release();
@@ -459,7 +483,8 @@ saveRewards = function(projectInfo, res){
 				}
 			}//agregado 02/05/2018
 			});
-		}
+			callback();
+		});
 
 		getProject(projectInfo.id, res);
 
