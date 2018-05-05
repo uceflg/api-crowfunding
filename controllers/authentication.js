@@ -109,7 +109,7 @@ module.exports.register = function (req, res) {
                           </tr>
                           <tr>
                             <td colspan="2" style="padding:30px 0 0 0;border-top:1px solid #e9edee;color:#9b9fa5">
-                              If you have any questions you can contact us at <a style="color:#666d74;text-decoration:none;" href="mailto:support@xero.com" target="_blank">contacto@otara.cl</a>
+                              Si tienes cualquier pregunta tu puedes contactarte con nosotros a <a style="color:#666d74;text-decoration:none;" href="mailto:support@xero.com" target="_blank">usqai@ucn.cl</a>
                             </td>
                           </tr>
                         </tbody>
@@ -142,7 +142,7 @@ module.exports.register = function (req, res) {
                     updated_at: dateFormat(h, "isoDateTime")
                 };
     
-                var insertQuery = "INSERT INTO users ( name, email, hash, salt, confirm_token, role_id, created_at, updated_at) values (?,?,?,?,?,?,?)";
+                var insertQuery = "INSERT INTO users ( name, email, hash, salt, confirm_token, role_id, created_at, updated_at) values (?,?,?,?,?,?,?,?)";
                 
                 connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, 2, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
                     if (err) {
@@ -158,7 +158,7 @@ module.exports.register = function (req, res) {
                     res
                         .status(200)
                         .json({
-                            message: "A Confirmation email has bent sent to "+ email + ", please confirm it"
+                            message: "Se ha enviado un correo de confirmación a "+ email + "."
                         });
                     return;
                     /*res.json({
@@ -206,7 +206,7 @@ module.exports.login = function (req, res) {
                     .status(200)
                     .json({
                         error: true,
-                        message: 'Email not confirmed.'
+                        message: 'Email no confirmado.'
                     });
                 res.end();
                 return;
@@ -289,7 +289,7 @@ module.exports.confirmEmail = function(req, res){
         }
         console.log(decoded)
         connection = mysql.createConnection(dbConfig.db_credentials);
-        connection.query(`SELECT confirm_token FROM user WHERE email = ?`, [decoded.email], function(err, rows){
+        connection.query(`SELECT confirm_token FROM users WHERE email = ?`, [decoded.email], function(err, rows){
             if (err) {
                 connection.end();
                 console.log('no se que wea');
@@ -297,8 +297,9 @@ module.exports.confirmEmail = function(req, res){
                 res.end();
                 return;
             }
-            let user_token = rows;
-            if(usert_token == token){
+            let user_token = rows[0];
+            console.log(token);
+            if(user_token.confirm_token == token){
                 let insertQuery = "UPDATE users SET email_confirmed = 1 WHERE email = ?"
                 connection.query(insertQuery, [decoded.email], function (err, rows) {
                     if (err) {
