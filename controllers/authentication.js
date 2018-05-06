@@ -43,7 +43,7 @@ module.exports.register = function (req, res) {
             return;
         }
         if (rows.length) {
-            connection.end();
+            //connection.end();
             res.status(404).json({message: "El correo ya se encuentra utilizado."});
             res.end();
             return;
@@ -58,7 +58,7 @@ module.exports.register = function (req, res) {
             var hash =  crypto.pbkdf2Sync(pass, salt, 1000, 64, 'sha512').toString('hex');
             var confirm_token;
             //async email
-            console.log(authConfig);
+            //console.log(authConfig);
             jwt.sign(
                 {
                     email: email
@@ -73,13 +73,13 @@ module.exports.register = function (req, res) {
                 const url = `http://localhost:4200/?confirm=${confirm_token}`
                 // Generate test SMTP service account from ethereal.email
                 // Only needed if you don't have a real mail account for testing
-                let transporter = nodemailer.createTransport({
+                /*let transporter = nodemailer.createTransport({
                     service: 'gmail',
                     auth: {
                         user: authConfig.user_email, // generated ethereal user
                         pass: authConfig.pass_email // generated ethereal password
                     }
-                });
+                });*/
 
                 // setup email data with unicode symbols
                 let mailOptions = {
@@ -118,7 +118,7 @@ module.exports.register = function (req, res) {
                   </div>` // html body
                 };
 
-                // send mail with defined transport object
+                /*// send mail with defined transport object
                 transporter.sendMail(mailOptions, (error, info) => {
                     if (error) {
                         return console.log(error);
@@ -129,7 +129,7 @@ module.exports.register = function (req, res) {
 
                     // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
                     // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
-                });
+                });*/
 
                 var newUserMysql = {
                     name: name,
@@ -139,13 +139,16 @@ module.exports.register = function (req, res) {
                     confirm_token: confirm_token,
                     role_id: 2,
                     created_at: dateFormat(h, "isoDateTime"),
-                    updated_at: dateFormat(h, "isoDateTime")
+                    updated_at: dateFormat(h, "isoDateTime"),
+                    email_confirmed: 1
                 };
     
-                var insertQuery = "INSERT INTO users ( name, email, hash, salt, confirm_token, role_id, created_at, updated_at) values (?,?,?,?,?,?,?,?)";
-                
-                connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, 2, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
-                    if (err) {
+                //var insertQuery = "INSERT INTO users ( name, email, hash, salt, confirm_token, role_id, created_at, updated_at) values (?,?,?,?,?,?,?,?)";
+                var insertQuery = "INSERT INTO users ( name, email, hash, salt, confirm_token, role_id, created_at, updated_at, email_confirmed) values (?,?,?,?,?,?,?,?,?)";
+
+                //connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, 2, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
+                connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, 2, newUserMysql.created_at, newUserMysql.updated_at,newUserMysql.email_confirmed], function (err, rows) {
+                if (err) {
                         connection.end();
                         res.status(404).send(err);
                         res.end();
@@ -158,7 +161,8 @@ module.exports.register = function (req, res) {
                     res
                         .status(200)
                         .json({
-                            message: "Se ha enviado un correo de confirmación a "+ email + "."
+                            //message: "Se ha enviado un correo de confirmación a "+ email + "."
+                            message: "Se ha registrado correctamente."
                         });
                     return;
                     /*res.json({
