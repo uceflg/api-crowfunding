@@ -8,6 +8,7 @@ var ctrlProject = require('../controllers/project_controller');
 var ctrlCategories = require('../controllers/categories_controller');
 var crtlUser = require('../controllers/user_controller');
 var ctrlTeam = require('../controllers/team_controller');
+var ctrlContribute = require('../controllers/contribute_controller');
 
 // Authentication.
 router.post('/register', ctrlAuth.register);
@@ -40,8 +41,8 @@ router.get('/projects/:id', ctrlProject.fetchProject);
 router.put('/projects/:id', ctrlProject.updateProjects);
 router.get('/projects/categories/:category', ctrlProject.getProjectsByCategory);
 
-// Categories.
-router.get('/category', ctrlCategories.getAll)
+//Contributes
+router.post('/contribute',ctrlContribute.insertContribution);
 
 
 module.exports = router;
