@@ -15,14 +15,16 @@ var pool = mysql.createPool(db.db_credentials);
         pool.getConnection(function(error, connection){
             connection.query(`INSERT INTO contributes
                                     (user_id,
+                                  project_id,  
                                   name,
                                   phone_no,
                                   email,
                                   amount,
                                   date)
-                          VALUES  (?,?,?,?,?,?)
+                          VALUES  (?,?,?,?,?,?,?)
                                   `,
           [null,
+           newData.proyecto,
            newData.nombre, 
            newData.telefono,
            newData.correo,
