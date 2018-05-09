@@ -38,7 +38,6 @@ var pool = mysql.createPool(db.db_credentials);
                     return;
                 }
                 res.status(200).json({
-                    newData: "Hola"
                 });
                 res.end();
             }); //Fin obtener usuario.
