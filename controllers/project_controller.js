@@ -871,3 +871,31 @@ exports.getProjectsByCategory = function(req, res){
 		});
 	});
 }
+
+exports.backedProjects = function(req, res){
+	let project;
+	pool.getConnection(function(error, connection){
+		connection.query(`SELECT	projects.id,
+														 	projects.title
+											FROM   	contributes,
+														 	projects
+											WHERE  	projects.id = contributes.project_id`, 
+		function(error, results, fields){
+			connection.release();
+			if (error){
+				res
+					.status(401)
+				res.end();
+				return;
+			}
+			project = results;
+			res
+				.status(200)
+				.json({
+					project	
+				})
+			res.end();
+			return;
+		});
+	});
+}

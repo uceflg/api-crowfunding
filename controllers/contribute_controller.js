@@ -45,3 +45,62 @@ var pool = mysql.createPool(db.db_credentials);
             }); //Fin obtener usuario.
         });
 }
+
+exports.getBackers = function(req, res){
+	let project;
+	let project_id = req.params.id;
+	pool.getConnection(function(error, connection){
+		connection.query(`SELECT    name,
+                                    phone_no,
+                                    email,
+                                    amount
+                          FROM  contributes
+                          WHERE project_id = ?`,
+							[project_id], 
+		function(error, results, fields){
+			connection.release();
+			if (error){
+				res
+					.status(401)
+				res.end();
+				return;
+			}
+			project = results;
+			res
+				.status(200)
+				.json({
+					project	
+				})
+			res.end();
+			return;
+		});
+	});
+}
+
+exports.getAllBackers = function(req, res){
+	let project;
+	pool.getConnection(function(error, connection){
+		connection.query(`SELECT    name,
+                                    phone_no,
+                                    email,
+                                    amount
+                          FROM  contributes`,
+		function(error, results, fields){
+			connection.release();
+			if (error){
+				res
+					.status(401)
+				res.end();
+				return;
+			}
+			project = results;
+			res
+				.status(200)
+				.json({
+					project	
+				})
+			res.end();
+			return;
+		});
+	});
+}

@@ -40,9 +40,10 @@ router.post('/projects/launch', ctrlProject.launch);
 router.get('/projects/:id', ctrlProject.fetchProject);
 router.put('/projects/:id', ctrlProject.updateProjects);
 router.get('/projects/categories/:category', ctrlProject.getProjectsByCategory);
+router.get('/backedProjects', ctrlProject.backedProjects);
 
 //Contributes
 router.post('/contribute',ctrlContribute.insertContribution);
-
-
+router.get('/project/backers/:id', ctrlContribute.getBackers);
+router.get('/project/backers', ctrlContribute.getAllBackers);
 module.exports = router;
