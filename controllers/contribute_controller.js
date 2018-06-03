@@ -50,10 +50,10 @@ exports.getBackers = function(req, res){
 	let project;
 	let project_id = req.params.id;
 	pool.getConnection(function(error, connection){
-		connection.query(`SELECT    name,
-                                    phone_no,
-                                    email,
-                                    amount
+		connection.query(`SELECT    name as Nombre,
+                                    phone_no as Telefono,
+                                    email as Email,
+                                    amount as Monto
                           FROM  contributes
                           WHERE project_id = ?`,
 							[project_id], 
