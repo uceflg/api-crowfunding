@@ -47,15 +47,17 @@ exports.updateUser = function(req, res){
   let newData = req.body.user;
   var now = new Date();
   console.log(newData);
+
+  return;
   if(newData.address_attributes.id == null){
     pool.getConnection(function(error, connection){
       connection.query(`INSERT INTO addresses
-                               (street_address,
+                               (address_1,
+                                address_2,
                                 city,
-                                postcode,
+                                zip,
                                 country,
                                 user_id,
-                                created_at,
                                 updated_at)
                         VALUES  (?,?,?,?,?,?,?)
                                 `,
