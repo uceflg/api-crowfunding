@@ -6,22 +6,67 @@ var jwt = require('jsonwebtoken');
 var dateFormat = require('dateformat');
 var db = require('../config/db');
 var cloudify = require('./image_uploader');
-var pool = mysql.createPool(db.db_credentials);
+var authConfig = require('../config/auth_conf').auth;
+var dbConfig = require('../config/db');
 
-exports.fetchUser = function(req, res){
+const Pool = require('pg').Pool
+const pool = new Pool(dbConfig.db_credentials);
+
+exports.fetchUser = function (req, res) {
   fetchUser(req, res);
 }
 
-exports.updateProfilePic = function(req, res){
+
+
+exports.getPosibleLeaders = function (req, res) {
+  let token = req.headers.auth;
+  if (!token) {
+    return res.status(202).send({ err: "TOKEN_ERROR: No valid token" })
+  };
+  jwt.verify(token, authConfig.jwt_secret, function (err, decoded) {
+    if (err) {
+      res.status(204).send(err);
+      res.end();
+    }
+
+    let insertQuery = `SELECT array_agg(users.email) as emails
+                        FROM	users
+                        WHERE	NOT EXISTS(SELECT	1
+                                          FROM	user_role
+                                          INNER JOIN roles
+                                            ON	roles.id = user_role.role_id
+                                            AND	roles.role_name = 'admin'
+                                          WHERE	user_role.user_id = users.id)`;
+    pool.query(insertQuery)
+      .then(result => {
+        let user = result.rows[0];
+        res.status(200);
+        res.json({
+          success: true,
+          message: 'Connection Successful',
+          candidates: user
+        });
+        res.end();
+        return;
+      })
+      .catch(e => setImmediate(() => {
+        console.log(e);
+        res.status(404).send(e);
+        res.end();
+      }));
+  });
+}
+
+exports.updateProfilePic = function (req, res) {
   let id = req.params.id;
   let image_data = req.body.image_data;
-  if(image_data){
-    cloudify.upload_image(image_data, function(data){
-      if(!data.error){
-        pool.getConnection(function(error, connection){
+  if (image_data) {
+    cloudify.upload_image(image_data, function (data) {
+      if (!data.error) {
+        pool.getConnection(function (error, connection) {
           var now = new Date();
-          connection.query(`UPDATE users SET image_url = ?, updated_at = ? WHERE id = ? `, [data.url, dateFormat(now, "isoDateTime"), id], function(error, results, fields){
-            if (error){
+          connection.query(`UPDATE users SET image_url = ?, updated_at = ? WHERE id = ? `, [data.url, dateFormat(now, "isoDateTime"), id], function (error, results, fields) {
+            if (error) {
               connection.release();
               res
                 .status(401)
@@ -33,24 +78,24 @@ exports.updateProfilePic = function(req, res){
           })
         });
       }
-      else{
+      else {
         fetchUser(req, res);
       }
     });
-  }else{
+  } else {
     console.log("no entre");
   }
 }
 
-exports.updateUser = function(req, res){
+exports.updateUser = function (req, res) {
   let userId = req.params.id;
   let newData = req.body.user;
   var now = new Date();
   console.log(newData);
 
   return;
-  if(newData.address_attributes.id == null){
-    pool.getConnection(function(error, connection){
+  if (newData.address_attributes.id == null) {
+    pool.getConnection(function (error, connection) {
       connection.query(`INSERT INTO addresses
                                (address_1,
                                 address_2,
@@ -61,31 +106,31 @@ exports.updateUser = function(req, res){
                                 updated_at)
                         VALUES  (?,?,?,?,?,?,?)
                                 `,
-        [newData.address_attributes.street_address, 
-         newData.address_attributes.city,
-         newData.address_attributes.postcode,
-         newData.address_attributes.country,
-         userId,
-         dateFormat(now, "isoDateTime"),
-         dateFormat(now, "isoDateTime")],
-        function(error, results, fields){
-          if (error){
+        [newData.address_attributes.street_address,
+        newData.address_attributes.city,
+        newData.address_attributes.postcode,
+        newData.address_attributes.country,
+          userId,
+        dateFormat(now, "isoDateTime"),
+        dateFormat(now, "isoDateTime")],
+        function (error, results, fields) {
+          if (error) {
             connection.release();
             res
               .status(401)
             res.end();
             return;
           }
-          connection.query(`UPDATE users SET name = ?, phone_no = ?, updated_at = ? WHERE id = ?`, 
-            [newData.name, newData.phone_no, dateFormat(now, "isoDateTime"), userId], 
-            function(error, results, fields){
-            connection.release();
-            fetchUser(req, res);
-          });          
-      }); //Fin obtener usuario.
+          connection.query(`UPDATE users SET name = ?, phone_no = ?, updated_at = ? WHERE id = ?`,
+            [newData.name, newData.phone_no, dateFormat(now, "isoDateTime"), userId],
+            function (error, results, fields) {
+              connection.release();
+              fetchUser(req, res);
+            });
+        }); //Fin obtener usuario.
     });
-  }else{
-    pool.getConnection(function(error, connection){
+  } else {
+    pool.getConnection(function (error, connection) {
       connection.query(`UPDATE  addresses
                         SET     street_address = ?,
                                 city = ?,
@@ -95,34 +140,34 @@ exports.updateUser = function(req, res){
                         WHERE   id = ?
                         AND     user_id = ?
                                 `,
-        [newData.address_attributes.street_address, 
-         newData.address_attributes.city,
-         newData.address_attributes.postcode,
-         newData.address_attributes.country,
-         dateFormat(now, "isoDateTime"),
-         newData.address_attributes.id,
-         userId],
-        function(error, results, fields){
-          if (error){
+        [newData.address_attributes.street_address,
+        newData.address_attributes.city,
+        newData.address_attributes.postcode,
+        newData.address_attributes.country,
+        dateFormat(now, "isoDateTime"),
+        newData.address_attributes.id,
+          userId],
+        function (error, results, fields) {
+          if (error) {
             connection.release();
             res
               .status(401)
             res.end();
             return;
           }
-          connection.query(`UPDATE users SET name = ?, phone_no = ?, updated_at = ? WHERE id = ?`, 
-            [newData.name, newData.phone_no, dateFormat(now, "isoDateTime"), userId], 
-            function(error, results, fields){
-            connection.release();
-            fetchUser(req, res);
-          });          
-      }); //Fin obtener usuario.
+          connection.query(`UPDATE users SET name = ?, phone_no = ?, updated_at = ? WHERE id = ?`,
+            [newData.name, newData.phone_no, dateFormat(now, "isoDateTime"), userId],
+            function (error, results, fields) {
+              connection.release();
+              fetchUser(req, res);
+            });
+        }); //Fin obtener usuario.
     });
   }
   // if(newData.password != ''){
   //   var salt =  crypto.randomBytes(16).toString('hex');
   //   var hash =  crypto.pbkdf2Sync(newData.password, salt, 1000, 64, 'sha512').toString('hex');
-    
+
   // }else{
   //   console.log(newData);
   //   let teams;
@@ -148,9 +193,9 @@ exports.updateUser = function(req, res){
   // }
 }
 
-exports.fetchAllUsers = function(req, res){
+exports.fetchAllUsers = function (req, res) {
   let users;
-  pool.getConnection(function(error, connection){
+  pool.getConnection(function (error, connection) {
     connection.query(`SELECT 	users.id,
                               users.name
                       FROM		users,
@@ -160,10 +205,10 @@ exports.fetchAllUsers = function(req, res){
                                           WHERE		user_team.user_id = users.id
                                           AND     user_team.leader = 1)
                       AND		roles.id = users.role_id
-                      AND		roles.name <> 'admin'`, 
-      function(error, results, fields){
+                      AND		roles.name <> 'admin'`,
+      function (error, results, fields) {
         connection.release();
-        if (error){
+        if (error) {
           res
             .status(401)
           res.end();
@@ -177,234 +222,42 @@ exports.fetchAllUsers = function(req, res){
           })
         res.end();
         return;
-    }); //Fin obtener usuario.
+      }); //Fin obtener usuario.
   });
 }
 
-exports.createTeam = function(req, res){
-  let team = req.body.team;
-  let teamResult;
-  pool.getConnection(function(error, connection){
-    if(team.id == ''){
-      connection.query('SELECT * FROM team WHERE UPPER(name) = ?', [(team.name).toUpperCase()], function(error, results, fields){
-        if (error){
-          connection.release();
-          res
-            .status(401)
-          res.end();
-          return;
-        }
-        teamResult = results[0];
-        if(teamResult){
-          connection.release();
-          //Ya existe el nombre del equipo.
-          res
-            .status(200)
-            .json({
-              status: false,
-              error:  "Team Ya Existe."	
-            })
-          res.end();
-          return;
-        }else{
-          //Crear nuevo Team.
-          var now = new Date();
-          let url;
-            /*if(team.images_data){
-                cloudify.upload_image(team.images_data[0], function(data){
-                  if(!data.error){
-                    url = data.url;
-                  }
-                });
-            }*/
-            
-            let teamJson = {
-              name: team.name,
-              logo_url : url,
-              email: team.email,
-              web_url: team.web_url,
-              city: team.city,
-              state: team.state,
-              region: team.region,
-              description: team.description,
-              team_date: dateFormat(team.start_date),
-              created_at: dateFormat(now, "isoDateTime"),
-              updated_at: dateFormat(now, "isoDateTime")
-            };
-
-            connection.query('INSERT INTO team SET ?', teamJson, function(error, results, fields){
-              if (error){
-                connection.release();
-                res
-                  .status(401)
-                res.end();
-                return;
-              }
-              let newTeam;
-              let existe;
-              connection.query('SELECT * FROM team WHERE UPPER(name) = ?',[(team.name).toUpperCase()], function(error, results, fields){
-                if (error){
-                  connection.release();
-                  res
-                    .status(401)
-                  res.end();
-                  return;
-                }
-                newTeam = results[0];
-                console.log(newTeam);
-                //Agregado para update
-                if(team.images_data){
-                  cloudify.upload_image(team.images_data[0], function(data){
-                  if(!data.error){
-                    url = data.url;
-                    connection.query('UPDATE team SET logo_url = ? WHERE `id` = ?' 
-                      ,[url,
-                        newTeam.id]
-                      , function(error, results, fields){
-                        if (error){console.log(error);}else{console.log(results);}
-                      }
-                    );
-                    console.log(url);
-                  }
-                  });
-                }
-                //fin agregado update
-                connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
-                  if (error){
-                    connection.release();
-                    res
-                      .status(401)
-                    res.end();
-                    return;
-                  }
-                  existe = results[0];
-                  if(existe){
-                    connection.query('UPDATE user_team SET leader = 1, editor = 1 WHERE user_id = ?',[team.representative]);
-                  }else{
-                    connection.query('INSERT INTO user_team(user_id, team_id, leader, editor) VALUES(?, ?, ?, ?)',[team.representative, newTeam.id, true, true]);
-                  }
-                  connection.release();
-                  res
-                    .status(200)
-                    .json({
-                      status: true	
-                    })
-                  res.end();
-                  return;
-                });
-              });
-              
-            }); //Fin Insert  
-        }
+exports.createTeam = function (req, res) {
+  let query = `select f_create_team($1, $2)`;
+  pool.query(query, [res.locals.id, JSON.stringify(req.body.team)])
+    .then(result => {
+      console.log(result);
+      let user = result.rows[0];
+      res.status(200);
+      res.json({
+        success: true,
+        message: 'Connection Successful',
+        candidates: user
       });
+      res.end();
+      return;
+    })
+    .catch(e => setImmediate(() => {
+      res.status(404).send(e);
+      res.end();
+      return;
+    }));
 
-    
-    }else{
-      var now = new Date();
-      console.log(team);
-      let url;
-      if(team.images_data){
-        cloudify.upload_image(team.images_data[0], function(data){
-        if(!data.error){
-          url = data.url;
-          connection.query('UPDATE team SET logo_url = ? WHERE `id` = ?' 
-            ,[url,
-            team.id]
-            , function(error, results, fields){
-              if (error){console.log(error);}else{console.log(results);}
-            }
-          );
-          console.log(url);
-        }
-        });
-      }
-      //console.log(url);
-      connection.query('UPDATE team SET updated_at = ?, name = ?, email = ?, web_url = ?, logo_url = ? WHERE `id` = ?' 
-        ,[dateFormat(now, "isoDateTime"), 
-        team.name,
-        team.email,
-        team.web_url,
-        url,
-        team.id]
-        , function(error, results, fields){
-          if (error){console.log(error);}else{console.log(results);}
-        }
-      );
-        let existe;
-        let quitar;
-        connection.query('SELECT * FROM user_team WHERE user_id = ?',[team.representative], function(error, results, fields){
-          if (error){
-            connection.release();
-            res
-              .status(401)
-            res.end();
-            return;
-          }
-          existe = results[0];
-          if(existe){
-            connection.query('UPDATE user_team SET leader = 1, editor = 1 WHERE user_id = ? AND team_id = ?',[team.representative, team.id]);
-            connection.query('SELECT * FROM user_team WHERE user_id <> ? AND team_id = ?', [team.representative, team.id], function(error, results, fields){
-              if (error){
-                connection.release();
-                res
-                  .status(401)
-                res.end();
-                return;
-              }
-              quitar = results[0];
-              if(quitar){
-                connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id], function(error, results, fields){
-                  if (error){
-                    connection.release();
-                    res
-                      .status(401)
-                    res.end();
-                    return;
-                  }
-                });
-              }
-            });
-          }else{
-            connection.query('INSERT INTO user_team(user_id, team_id, leader, editor) VALUES(?, ?, ?, ?)',[team.representative, team.id, true, true]);
-            connection.query('SELECT * FROM user_team WHERE user_id <> ? AND team_id = ?', [team.representative, team.id], function(error, results, fields){
-              if (error){
-                connection.release();
-                res
-                  .status(401)
-                res.end();
-                return;
-              }
-              quitar = results[0];
-              if(quitar){
-                connection.query('UPDATE user_team SET leader = 0, editor = 0 WHERE user_id = ? AND team_id = ?', [quitar.id, team.id]);
-              }
-            });
-          }
-          connection.release();
-          res
-          .status(200)
-          .json({
-            status: true
-          })
-        res.end();
-        });
+};
 
-     
-    }
-
-    return;
-  });
-}
-
-exports.getTeams = function(req, res){
+exports.getTeams = function (req, res) {
   let teams;
-  pool.getConnection(function(error, connection){
+  pool.getConnection(function (error, connection) {
     connection.query(`SELECT	id,
                               name
-                      FROM		team`, 
-      function(error, results, fields){
+                      FROM		team`,
+      function (error, results, fields) {
         connection.release();
-        if (error){
+        if (error) {
           res
             .status(401)
           res.end();
@@ -418,14 +271,14 @@ exports.getTeams = function(req, res){
           })
         res.end();
         return;
-    }); //Fin obtener usuario.
+      }); //Fin obtener usuario.
   });
-} 
+}
 
-fetchUser = function(req, res){
+fetchUser = function (req, res) {
   let userInfo = req.params;
   let user;
-  pool.getConnection(function(error, connection){
+  pool.getConnection(function (error, connection) {
     connection.query(`SELECT	users.id, 
                               users.name, 
                               users.image_url, 
@@ -464,9 +317,9 @@ fetchUser = function(req, res){
                               roles
                       WHERE 	users.id = ?
                       AND   	users.role_id = roles.id
-                      `, [userInfo.id], 
-      function(error, results, fields){
-        if (error){
+                      `, [userInfo.id],
+      function (error, results, fields) {
+        if (error) {
           connection.release();
           res
             .status(401)
@@ -474,7 +327,7 @@ fetchUser = function(req, res){
           return;
         }
         user = results[0];
-        if(user.role_name == 'admin'){
+        if (user.role_name == 'admin') {
           connection.query(`SELECT	projects.id,
                                     projects.title,
                                     projects.video_url,
@@ -498,9 +351,9 @@ fetchUser = function(req, res){
                             FROM 		projects
                             INNER JOIN	categories ON categories.id = projects.category_id
                             INNER JOIN	team ON team.id = projects.team_id
-                            LEFT JOIN	stories ON stories.project_id = projects.id`, 
-            function(error, results, fields){
-              if (error){
+                            LEFT JOIN	stories ON stories.project_id = projects.id`,
+            function (error, results, fields) {
+              if (error) {
                 connection.release();
                 res
                   .status(401)
@@ -516,9 +369,9 @@ fetchUser = function(req, res){
                                 FROM    addresses
                                 WHERE   user_id = ?`,
                 [userInfo.id],
-                function(error,results, fields){
+                function (error, results, fields) {
                   connection.release();
-                  if (error){
+                  if (error) {
                     res
                       .status(401)
                     res.end();
@@ -533,9 +386,9 @@ fetchUser = function(req, res){
                   res.end();
                   return;
                 });
-              }
-            ) //Fin obtener proyectos.
-        }else{
+            }
+          ) //Fin obtener proyectos.
+        } else {
           connection.query(`SELECT	projects.id,
                                     projects.title,
                                     projects.video_url,
@@ -563,9 +416,9 @@ fetchUser = function(req, res){
                             WHERE   projects.team_id = ?
                             AND		  categories.id = projects.category_id
                             AND		  team.id = projects.team_id
-                            AND		  stories.project_id = projects.id`, user.team_id, 
-            function(error, results, fields){
-              if (error){
+                            AND		  stories.project_id = projects.id`, user.team_id,
+            function (error, results, fields) {
+              if (error) {
                 connection.release();
                 res
                   .status(401)
@@ -581,9 +434,9 @@ fetchUser = function(req, res){
                                 FROM    addresses
                                 WHERE   user_id = ?`,
                 [userInfo.id],
-                function(error, results, fields){
+                function (error, results, fields) {
                   connection.release();
-                  if (error){
+                  if (error) {
                     res
                       .status(401)
                     res.end();
@@ -598,9 +451,9 @@ fetchUser = function(req, res){
                   res.end();
                   return;
                 });
-              }
+            }
           ) //Fin obtener proyectos.
-        }      
-    }); //Fin obtener usuario.
+        }
+      }); //Fin obtener usuario.
   });
 }

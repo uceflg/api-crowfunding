@@ -6,60 +6,76 @@ var jwt = require('jsonwebtoken');
 var dateFormat = require('dateformat');
 var dbConfig = require('../config/db');
 var authConfig = require('../config/auth_conf').auth;
-var randtoken = require('rand-token') 
+var randtoken = require('rand-token')
 const nodemailer = require('nodemailer');
-
+const Pool = require('pg').Pool
+const pool = new Pool(dbConfig.db_credentials);
 var connection;
 
 var refreshTokens = {};
 
 
+module.exports.test = function (req, res) {
+	console.log("hola");
+	pool.query('SELECT NOW()', (err, query) => {
+		if (err) {
+			 res.status(404).send(err); res.end();
+		}
+		console.log(query.rows)
+		
+		return;
+		;
+
+	});
+}
 
 module.exports.register = function (req, res) {
 
-	connection = mysql.createConnection(dbConfig.db_credentials);
 	var first_name = req.body.user.first_name;
 	var last_name = req.body.user.last_name;
 	var email = req.body.user.email;
+	let email_name = email
+		.substring(0, email.indexOf('@'))
+		.toLowerCase()
+		.replace(/\./g, '');
+	let email_domain = email.substring(email.indexOf('@'));
+	let compare_email = email_name + email_domain;
 	var stringi = JSON.stringify(req.body.user.password);
 	var pass = stringi;
-	connection.connect(function(err){
-		if(!err) {
-			console.log("Database is connected ... nn");
-		} else {
-			console.log("Error connecting database ... nn");    
-		}
-	});
-	
-
-	connection.query("SELECT * FROM users WHERE email = ?", [email], function (err, rows, fields) {
-		
-		if (err){
-			connection.end();
+	pool.query(`SELECT	* 
+								FROM 	users 
+								WHERE CONCAT(
+												REPLACE(SUBSTRING(email,1,strpos(email,'@') - 1), '.', ''),
+												SUBSTRING(email,strpos(email,'@'))
+												) = $1`, [compare_email], (err, query) => {
+		if (err) {
+			
 			console.log('Error while performing Query.');
-			res.status(404).send('Error while performing Query.');
+			res.status(404).json({error: 'Error while performing Query.'});
 			res.end();
 			return;
 		}
-		if (rows.length) {
-			//connection.end();
-			res.status(404).json({message: "El correo ya se encuentra utilizado."});
+		console.log(query.rows);
+		if (query.rows.length) {
+			
+			
+			res.status(202).json({ err: "EMAIL_ERROR: El correo ya se encuentra utilizado." });
 			res.end();
 			return;
-		} else {
-			console.log(rows.length);
-			// if there is no user with that username
-			// create the user
-			var d = new Date();
-			var x = new Date().getTimezoneOffset();
-			var n = d - x;
-			var h = new Date(d.getTime() - x * 60 * 1000);
-			var salt =  crypto.randomBytes(16).toString('hex');
-			var hash =  crypto.pbkdf2Sync(pass, salt, 1000, 64, 'sha512').toString('hex');
-			var confirm_token;
-			//async email
-			//console.log(authConfig);
-			confirm_token = jwt.sign({email: email}, authConfig.mail_secret, {expiresIn: "24h"});
+		}else{
+			console.log(query.rows.length);
+				// if there is no user with that username
+				// create the user
+				var d = new Date();
+				var x = new Date().getTimezoneOffset();
+				var n = d - x;
+				var h = new Date(d.getTime() - x * 60 * 1000);
+				var salt = crypto.randomBytes(16).toString('hex');
+				var hash = crypto.pbkdf2Sync(pass, salt, 1000, 64, 'sha512').toString('hex');
+				var confirm_token;
+				//async email
+				//console.log(authConfig);
+				confirm_token = jwt.sign({ email: email }, authConfig.mail_secret, { expiresIn: "24h" });
 				const url = `http://localhost:4200/?confirm=${confirm_token}`
 				// Generate test SMTP service account from ethereal.email
 				// Only needed if you don't have a real mail account for testing
@@ -116,7 +132,7 @@ module.exports.register = function (req, res) {
 					console.log('Message sent: %s', info.messageId);
 					// Preview only available when sending through an Ethereal account
 					console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
-
+	
 					// Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
 					// Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
 				});*/
@@ -132,22 +148,20 @@ module.exports.register = function (req, res) {
 					updated_at: dateFormat(h, "isoDateTime"),
 					email_confirmed: 1
 				};
-	
-				//var insertQuery = "INSERT INTO users ( name, email, hash, salt, confirm_token, role_id, created_at, updated_at) values (?,?,?,?,?,?,?,?)";
-				var insertQuery = "INSERT INTO users ( first_name, last_name, email, hash, salt, confirm_token, email_confirmed) values (?,?,?,?,?,?,?)";
 
-				//connection.query(insertQuery, [newUserMysql.name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, 2, newUserMysql.created_at, newUserMysql.updated_at], function (err, rows) {
-				connection.query(insertQuery, [newUserMysql.first_name, newUserMysql.last_name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, newUserMysql.email_confirmed], function (err, rows) {
-				if (err) {
+				var insertQuery = "INSERT INTO users ( first_name, last_name, email, hash, salt, confirm_token, email_confirmed) values ($1,$2,$3,$4,$5,$6,$7)";
+
+				pool.query(insertQuery, [newUserMysql.first_name, newUserMysql.last_name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, newUserMysql.email_confirmed], (err, query) => {
+					if (err) {
 						console.log(err);
-						connection.end();
+						
 						res.status(404).send(err);
 						res.end();
 						return;
 					}
-					connection.end();
+					
 					var token;
-					console.log(rows.insertId);
+					console.log(query.rows.insertId);
 					//token = generateJwt();
 					res
 						.status(200)
@@ -156,141 +170,125 @@ module.exports.register = function (req, res) {
 							message: "Se ha registrado correctamente."
 						});
 					return;
-					/*res.json({
-						"token": token,
-						"newUserMysql": newUserMysql.id
-					});*/
-				});
+				})
 		}
 	});
-
 };
 
 module.exports.login = function (req, res) {
 	var email = req.body.credentials.payload.email;
 	var stringi = JSON.stringify(req.body.credentials.payload.password);
-	
 	var pass = stringi;
+	let email_name = email
+		.substring(0, email.indexOf('@'))
+		.toLowerCase()
+		.replace(/\./g, '');
+	let email_domain = email.substring(email.indexOf('@'));
+	let compare_email = email_name + email_domain;
 
-	connection = mysql.createConnection(dbConfig.db_credentials);
+	pool.query(`SELECT	* 
+											FROM 	users 
+											WHERE CONCAT(
+															REPLACE(SUBSTRING(email,1,strpos(email,'@') - 1), '.', ''),
+															SUBSTRING(email,strpos(email,'@'))
+															) = $1`, [compare_email], (err, query) => {
 
-	connection.connect(function(err){
-		if(!err) {
-			console.log("Database is connected ... nn");    
-		} else {
-			console.log("Error connecting database ... nn");    
-		}
-	});
 
-	connection.query("SELECT * FROM users WHERE email = ?", [email], function (err, rows, fields) {
-		
-		if (err){
-			connection.end();
-			console.log('Error while performing Query.');
-			res.status(404).send('Error while performing Query.');
-			res.end();
-			return;
-		}
-		if (rows.length) {
-			
-			if(rows[0].email_confirmed == 0){
-				connection.end();
-				console.log('Email not confirmed.');
-				res
-					.status(200)
-					.json({
-						error: true,
-						message: 'Email no confirmado.'
-					});
+			if (err) {
+				
+				console.log('Error while performing Query.');
+				res.status(404).send('Error while performing Query.');
 				res.end();
 				return;
 			}
+			if (query.rows.length) {
 
-			if(validPassword(pass, rows[0].salt, rows[0].hash)){
-				connection.end();
-				const payload = {
-					user: rows[0].id
-				};
-				var token = jwt.sign(payload, authConfig.jwt_secret, {
-					 expiresIn: "24h" // expires in 24 hours
-				 });
-				 var refreshToken = randtoken.uid(256);
-				 refreshTokens[refreshToken] = rows[0].id;
-				 res.json({
-					 success: true,
-					 message: 'Connection Successful',
-					 user: {id: rows[0].id, first_name: rows[0].first_name, last_name: rows[0].last_name, image_url: rows[0].image_url, email: rows[0].email},
-					 authorization: token,
-					 refresh: refreshToken
-				 });
-				 res.end();
-				 return;
-			}else{
-				connection.end();
-				console.log("error");
-				return;
+				if (query.rows[0].email_confirmed == 0) {
+					
+					console.log('Email not confirmed.');
+					res
+						.status(200)
+						.json({
+							error: true,
+							message: 'Email no confirmado.'
+						});
+					res.end();
+					return;
+				}
+
+				if (validPassword(pass, query.rows[0].salt, query.rows[0].hash)) {
+					
+					const payload = {
+						user: query.rows[0].id
+					};
+					var token = jwt.sign(payload, authConfig.jwt_secret, {
+						expiresIn: "24h" // expires in 24 hours
+					});
+					var refreshToken = randtoken.uid(256);
+					refreshTokens[refreshToken] = query.rows[0].id;
+					res.json({
+						success: true,
+						message: 'Connection Successful',
+						user: { first_name: query.rows[0].first_name, last_name: query.rows[0].last_name, image_url: query.rows[0].image_url, email: query.rows[0].email },
+						authorization: token,
+						refresh: refreshToken
+					});
+					res.end();
+					return;
+				} else {
+					
+					console.log("error");
+					return;
+				}
+			} else {
+				
+				console.log('User doesn\'t exists');
+				res.status(401).send('User doesn\'t exists');
+				res.end();
 			}
-		} else {
-			connection.end();
-			console.log('User doesn\'t exists');
-			res.status(401).send('User doesn\'t exists');
-			res.end();
-		}
-	});
+		});
 };
 
 module.exports.isLoggedIn = function (req, res) {
 	let token = req.headers.auth;
-	jwt.verify(token, authConfig.jwt_secret, function(err, decoded){
-		if(err){
-			res.status(401).send(err);
+	if (!token) return res.status(202).send({ err: "TOKEN_ERROR: No valid token" });
+	jwt.verify(token, authConfig.jwt_secret, function (err, decoded) {
+		if (err) {
+			res.status(204).send(err);
 			res.end();
+			return;
 		}
-
-		connection = mysql.createConnection(dbConfig.db_credentials);
-		let insertQuery = `SELECT	* 
-												FROM 	users
-												LEFT JOIN	address
-													ON	address.user_id = users.id 
-												WHERE users.id = ?`
-		connection.query(insertQuery, [decoded.user], function (err, rows) {
+		pool.query(`select f_get_user($1) as user`, [decoded.user],  (err, query) => {
 			if (err) {
-				connection.end();
-				console.log('no se que wea');
+				console.log(err)
 				res.status(404).send(err);
 				res.end();
-			}
+				return;
+			}else{
+						
+			let user = query.rows[0].user;
+			
 			res.status(200);
 			res.json({
 				success: true,
 				message: 'Connection Successful',
-				user: {
-					id: rows[0].id, 
-					first_name: rows[0].first_name, 
-					last_name: rows[0].last_name, 
-					image_url: rows[0].image_url, 
-					email: rows[0].email,
-					address: {
-						address_1: rows[0].address_1,
-						address_2: rows[0].address_2,
-						city: rows[0].city,
-						zip: rows[0].zip,
-						country: rows[0].country
-					}
-				},
+				user: user
 			});
 			res.end();
 			return;
+			}
+
+	
 		});
 
-		
-	});    
+
+	});
 };
 
-module.exports.confirmEmail = function(req, res){
+module.exports.confirmEmail = function (req, res) {
 	let token = req.body.token;
-	jwt.verify(token, authConfig.mail_secret, function(err, decoded){
-		if(err){
+	jwt.verify(token, authConfig.mail_secret, function (err, decoded) {
+		if (err) {
 			res.status(200);
 			res.json({
 				message: 'El token a expirado.',
@@ -300,7 +298,7 @@ module.exports.confirmEmail = function(req, res){
 		}
 		console.log(decoded)
 		connection = mysql.createConnection(dbConfig.db_credentials);
-		connection.query(`SELECT confirm_token FROM users WHERE email = ?`, [decoded.email], function(err, rows){
+		connection.query(`SELECT confirm_token FROM users WHERE email = ?`, [decoded.email], function (err, rows) {
 			if (err) {
 				connection.end();
 				console.log('no se que wea');
@@ -310,7 +308,7 @@ module.exports.confirmEmail = function(req, res){
 			}
 			let user_token = rows[0];
 			console.log(token);
-			if(user_token.confirm_token == token){
+			if (user_token.confirm_token == token) {
 				let insertQuery = "UPDATE users SET email_confirmed = 1 WHERE email = ?"
 				connection.query(insertQuery, [decoded.email], function (err, rows) {
 					if (err) {
@@ -328,7 +326,7 @@ module.exports.confirmEmail = function(req, res){
 					res.end();
 					return;
 				});
-			}else{
+			} else {
 				res.status(200);
 				res.json({
 					message: 'El Token no es correcto, debe solicitar un nuevo mail de confirmación',
@@ -337,10 +335,10 @@ module.exports.confirmEmail = function(req, res){
 				return;
 			}
 		});
-	});    
+	});
 }
 
-validPassword = function(password, salt, hash){
+validPassword = function (password, salt, hash) {
 	var hashVerified = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 	console.log(hashVerified);
 	console.log(hash);

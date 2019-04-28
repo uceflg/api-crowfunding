@@ -17,6 +17,7 @@ const routesApi = require('./routes/index');
 
 app.use(logger('dev'));
 app.use(cors()); //add cors
+
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
@@ -24,6 +25,10 @@ app.use(cookieParser());
 // Serve static files
 //app.use(express.static(path.join(__dirname, 'dist')));
 
+app.use(function(req, res, next) { 
+    res.header("Access-Control-Allow-Origin", "*"); 
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept"); next(); 
+});
 // Set our api routes
 app.use('/api', routesApi);
 
@@ -47,6 +52,8 @@ app.use(function (err, req, res, next) {
     if (err.name === 'UnauthorizedError') {
         res.status(401);
         res.json({ "message": err.name + ": " + err.message });
+    }else{
+        next(err);
     }
 });
 
@@ -54,8 +61,9 @@ app.use(function (err, req, res, next) {
 // will print stacktrace
 if (app.get('env') === 'development') {
     app.use(function (err, req, res, next) {
+        console.log(err);
         res.status(err.status || 500);
-        res.render('error', {
+        res.json({
             message: err.message,
             error: err
         });
@@ -65,11 +73,14 @@ if (app.get('env') === 'development') {
 // production error handler
 // no stacktraces leaked to user
 app.use(function (err, req, res, next) {
+    console.log(err);
     res.status(err.status || 500);
-    res.render('error', {
+    res.json({
         message: err.message,
-        error: {}
+        error: err
     });
+    
+    return;
 });
 
 
