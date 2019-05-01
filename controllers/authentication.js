@@ -19,10 +19,10 @@ module.exports.test = function (req, res) {
 	console.log("hola");
 	pool.query('SELECT NOW()', (err, query) => {
 		if (err) {
-			 res.status(404).send(err); res.end();
+			res.status(404).send(err); res.end();
 		}
 		console.log(query.rows)
-		
+
 		return;
 		;
 
@@ -31,8 +31,7 @@ module.exports.test = function (req, res) {
 
 module.exports.register = function (req, res) {
 
-	var first_name = req.body.user.first_name;
-	var last_name = req.body.user.last_name;
+	var name = req.body.user.name;
 	var email = req.body.user.email;
 	let email_name = email
 		.substring(0, email.indexOf('@'))
@@ -48,22 +47,22 @@ module.exports.register = function (req, res) {
 												REPLACE(SUBSTRING(email,1,strpos(email,'@') - 1), '.', ''),
 												SUBSTRING(email,strpos(email,'@'))
 												) = $1`, [compare_email], (err, query) => {
-		if (err) {
-			
-			console.log('Error while performing Query.');
-			res.status(404).json({error: 'Error while performing Query.'});
-			res.end();
-			return;
-		}
-		console.log(query.rows);
-		if (query.rows.length) {
-			
-			
-			res.status(202).json({ err: "EMAIL_ERROR: El correo ya se encuentra utilizado." });
-			res.end();
-			return;
-		}else{
-			console.log(query.rows.length);
+			if (err) {
+
+				console.log('Error while performing Query.');
+				res.status(404).json({ error: 'Error while performing Query.' });
+				res.end();
+				return;
+			}
+			console.log(query.rows);
+			if (query.rows.length) {
+
+
+				res.status(202).json({ err: "EMAIL_ERROR: El correo ya se encuentra utilizado." });
+				res.end();
+				return;
+			} else {
+				console.log(query.rows.length);
 				// if there is no user with that username
 				// create the user
 				var d = new Date();
@@ -106,7 +105,7 @@ module.exports.register = function (req, res) {
 						  </tr>
 						  <tr>
 							<td colspan="2" style="padding:30px 0;">
-							  <p style="color:#1d2227;line-height:28px;font-size:22px;margin:12px 10px 20px 10px;font-weight:400;">Hola ${first_name} ${last_name}, bienvenido a Emprendo por mi Region</p>
+							  <p style="color:#1d2227;line-height:28px;font-size:22px;margin:12px 10px 20px 10px;font-weight:400;">Hola ${name}, bienvenido a Emprendo por mi Region</p>
 							  <p style="margin:0 10px 10px 10px;padding:0;">Nos gustaria asegurarnos que tenemos tu correo electronico correcto.</p>
 							  <p>
 								<a style="display:inline-block;text-decoration:none;padding:15px 20px;background-color:#2baaed;border:1px solid #2baaed;border-radius:3px;color:#FFF;font-weight:bold;" href="${url}" target="_blank">Si, soy yo – Empecemos!</a>
@@ -138,8 +137,7 @@ module.exports.register = function (req, res) {
 				});*/
 
 				var newUserMysql = {
-					first_name: first_name,
-					last_name: last_name,
+					name: name,
 					email: email,
 					salt: salt,  // use the generateHash function in our user model
 					hash: hash,
@@ -149,30 +147,27 @@ module.exports.register = function (req, res) {
 					email_confirmed: 1
 				};
 
-				var insertQuery = "INSERT INTO users ( first_name, last_name, email, hash, salt, confirm_token, email_confirmed) values ($1,$2,$3,$4,$5,$6,$7)";
-
-				pool.query(insertQuery, [newUserMysql.first_name, newUserMysql.last_name, newUserMysql.email, newUserMysql.hash, newUserMysql.salt, newUserMysql.confirm_token, newUserMysql.email_confirmed], (err, query) => {
-					if (err) {
-						console.log(err);
+				var insertQuery = "select f_create_user($1) as response";
+				pool.query(insertQuery, [newUserMysql])
+					.then(result => {
 						
-						res.status(404).send(err);
-						res.end();
-						return;
-					}
-					
-					var token;
-					console.log(query.rows.insertId);
-					//token = generateJwt();
-					res
-						.status(200)
-						.json({
-							//message: "Se ha enviado un correo de confirmación a "+ email + "."
+						let user = result.rows[0];
+						res.status(200);
+						res.json({
+							success: true,
 							message: "Se ha registrado correctamente."
 						});
-					return;
-				})
-		}
-	});
+						res.end();
+						return;
+					})
+					.catch(e => setImmediate(() => {
+						console.log(e);
+						res.status(404).send(e);
+						res.end();
+						return;
+					}));
+			}
+		});
 };
 
 module.exports.login = function (req, res) {
@@ -195,7 +190,7 @@ module.exports.login = function (req, res) {
 
 
 			if (err) {
-				
+
 				console.log('Error while performing Query.');
 				res.status(404).send('Error while performing Query.');
 				res.end();
@@ -204,7 +199,7 @@ module.exports.login = function (req, res) {
 			if (query.rows.length) {
 
 				if (query.rows[0].email_confirmed == 0) {
-					
+
 					console.log('Email not confirmed.');
 					res
 						.status(200)
@@ -217,7 +212,7 @@ module.exports.login = function (req, res) {
 				}
 
 				if (validPassword(pass, query.rows[0].salt, query.rows[0].hash)) {
-					
+
 					const payload = {
 						user: query.rows[0].id
 					};
@@ -236,12 +231,12 @@ module.exports.login = function (req, res) {
 					res.end();
 					return;
 				} else {
-					
+
 					console.log("error");
 					return;
 				}
 			} else {
-				
+
 				console.log('User doesn\'t exists');
 				res.status(401).send('User doesn\'t exists');
 				res.end();
@@ -258,27 +253,27 @@ module.exports.isLoggedIn = function (req, res) {
 			res.end();
 			return;
 		}
-		pool.query(`select f_get_user($1) as user`, [decoded.user],  (err, query) => {
+		pool.query(`select f_get_user($1) as user`, [decoded.user], (err, query) => {
 			if (err) {
 				console.log(err)
 				res.status(404).send(err);
 				res.end();
 				return;
-			}else{
-						
-			let user = query.rows[0].user;
-			
-			res.status(200);
-			res.json({
-				success: true,
-				message: 'Connection Successful',
-				user: user
-			});
-			res.end();
-			return;
+			} else {
+
+				let user = query.rows[0].user;
+
+				res.status(200);
+				res.json({
+					success: true,
+					message: 'Connection Successful',
+					user: user
+				});
+				res.end();
+				return;
 			}
 
-	
+
 		});
 
 
